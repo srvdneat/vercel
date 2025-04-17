@@ -132,60 +132,78 @@ export default function AIPatternVisualization({ symptoms, medications, symptomT
 
       // Generate the prompt for the AI
       const prompt = `
-        You are an AI specializing in medical data analysis and visualization. Analyze the following patient symptom data and generate visualizations that reveal patterns over time.
-        
-        SYMPTOM DATA (last ${timeRange} months):
-        ${JSON.stringify(symptomData, null, 2)}
-        
-        MEDICATION DATA:
-        ${JSON.stringify(medicationData, null, 2)}
-        
-        TRACKED SYMPTOM TYPES:
-        ${JSON.stringify(symptomTypes, null, 2)}
-        
-        Generate 4 different visualizations that reveal different patterns in the data:
-        1. Weekly patterns (day of week correlations)
-        2. Monthly/seasonal patterns
-        3. Weather correlation patterns
-        4. Medication impact patterns
-        
-        For each visualization, provide:
-        1. A title
-        2. A brief description of what the visualization shows
-        3. The chart type that would best display this pattern (choose from: line, bar, scatter, radar, composed)
-        4. The processed data for the visualization in JSON format
-        5. 2-3 key insights revealed by this pattern
-        6. A confidence score (0-100) indicating how strong this pattern is in the data
-        
-        Format your response as a valid JSON array with objects for each visualization. Example:
-        [
-          {
-            "type": "weekly",
-            "title": "Weekly Symptom Pattern",
-            "description": "Shows how symptoms vary by day of the week",
-            "chartType": "bar",
-            "data": [{"day": "Monday", "severity": 2.1, ...}, ...],
-            "insights": ["Symptoms tend to be worse on Mondays", "Weekends show lower severity scores"],
-            "confidence": 75
-          },
-          ...
-        ]
-        
-        Focus on finding real patterns in the data. If a pattern is weak or not present, assign a lower confidence score.
-        Ensure the data is properly formatted for direct use in charts.
-      `
+          You are an AI specializing in medical data analysis and visualization. Analyze the following patient symptom data and generate visualizations that reveal patterns over time.
+          
+          SYMPTOM DATA (last ${timeRange} months):
+          ${JSON.stringify(symptomData, null, 2)}
+          
+          MEDICATION DATA:
+          ${JSON.stringify(medicationData, null, 2)}
+          
+          TRACKED SYMPTOM TYPES:
+          ${JSON.stringify(symptomTypes, null, 2)}
+          
+          Generate 4 different visualizations that reveal different patterns in the data:
+          1. Weekly patterns (day of week correlations)
+          2. Monthly/seasonal patterns
+          3. Weather correlation patterns
+          4. Medication impact patterns
+          
+          For each visualization, provide:
+          1. A title
+          2. A brief description of what the visualization shows
+          3. The chart type that would best display this pattern (choose from: line, bar, scatter, radar, composed)
+          4. The processed data for the visualization in JSON format
+          5. 2-3 key insights revealed by this pattern
+          6. A confidence score (0-100) indicating how strong this pattern is in the data
+          
+          Format your response as a valid JSON array with objects for each visualization. Example:
+          [
+            {
+              "type": "weekly",
+              "title": "Weekly Symptom Pattern",
+              "description": "Shows how symptoms vary by day of the week",
+              "chartType": "bar",
+              "data": [{"day": "Monday", "severity": 2.1, ...}, ...],
+              "insights": ["Symptoms tend to be worse on Mondays", "Weekends show lower severity scores"],
+              "confidence": 75
+            },
+            ...
+          ]
+          
+          IMPORTANT: Your response MUST be a valid JSON array that can be parsed with JSON.parse(). Do not include any text before or after the JSON array.
+          
+          Focus on finding real patterns in the data. If a pattern is weak or not present, assign a lower confidence score.
+          Ensure the data is properly formatted for direct use in charts.
+        `
 
       // Call Groq API
       const { text } = await generateText({
         model: groq("llama3-70b-8192"),
         prompt,
         system:
-          "You are a medical data analysis AI specializing in finding patterns in symptom data. You always return valid JSON that can be parsed directly.",
+          "You are a medical data analysis AI specializing in finding patterns in symptom data. You always return valid JSON that can be parsed directly. Never include explanatory text outside the JSON structure.",
       })
 
       try {
-        // Parse the response as JSON
-        const parsedData = JSON.parse(text)
+        // Try to parse the response as JSON
+        let jsonText = text.trim()
+
+        // Check if the response starts with text instead of JSON
+        const jsonStartIndex = jsonText.indexOf("[")
+        if (jsonStartIndex > 0) {
+          // Extract only the JSON part
+          jsonText = jsonText.substring(jsonStartIndex)
+        }
+
+        // Find where the JSON array ends
+        const jsonEndIndex = jsonText.lastIndexOf("]")
+        if (jsonEndIndex > 0) {
+          jsonText = jsonText.substring(0, jsonEndIndex + 1)
+        }
+
+        // Parse the cleaned JSON
+        const parsedData = JSON.parse(jsonText)
         setPatternData(parsedData)
 
         // Set active pattern to the one with highest confidence
@@ -195,8 +213,41 @@ export default function AIPatternVisualization({ symptoms, medications, symptomT
         )
         setActivePattern(highestConfidencePattern.type)
       } catch (parseError) {
-        console.error("Error parsing AI response:", parseError)
-        setError("Failed to parse visualization data. Please try again.")
+        console.error("Error parsing AI response:", parseError, "Raw response:", text)
+
+        // Create fallback visualization data if parsing fails
+        const fallbackData = [
+          {
+            type: "weekly",
+            title: "Weekly Symptom Pattern",
+            description: "Shows how symptoms vary by day of the week",
+            chartType: "bar",
+            data: symptomData.reduce((acc: any, curr) => {
+              const day = format(new Date(curr.date), "EEEE")
+              if (!acc.find((item: any) => item.day === day)) {
+                acc.push({
+                  day,
+                  severity: curr.severity,
+                  count: 1,
+                })
+              } else {
+                const item = acc.find((item: any) => item.day === day)
+                item.severity = (item.severity * item.count + curr.severity) / (item.count + 1)
+                item.count += 1
+              }
+              return acc
+            }, []),
+            insights: [
+              "This visualization shows your symptom patterns by day of week",
+              "The data is based on your recorded symptoms",
+            ],
+            confidence: 60,
+          },
+        ]
+
+        setPatternData(fallbackData)
+        setActivePattern("weekly")
+        setError("AI response could not be processed correctly. Showing simplified visualization instead.")
       }
     } catch (err) {
       console.error("Error generating visualizations:", err)
