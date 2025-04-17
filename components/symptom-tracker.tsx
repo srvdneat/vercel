@@ -420,32 +420,23 @@ export default function SymptomTracker() {
 
         {/* Bottom row - Navigation */}
         <div className="flex h-12 items-center px-4">
-          {/* Left side - Main navigation on desktop */}
-          <div className="hidden md:flex items-center space-x-1 flex-1">
-            {navItems.slice(0, 4).map((item) => (
+          {/* Left side - Empty space */}
+          <div className="flex-1"></div>
+
+          {/* Right side - Main navigation */}
+          <div className="flex items-center ml-auto space-x-1">
+            {navItems.map((item) => (
               <Button
                 key={item.id}
                 variant={mainView === item.id ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setMainView(item.id as any)}
+                className="hidden md:flex"
               >
                 {item.icon}
                 <span className="ml-2">{item.label}</span>
               </Button>
             ))}
-          </div>
-
-          {/* Right side - Symptom button and sign out */}
-          <div className="flex items-center ml-auto space-x-1">
-            <Button
-              variant={mainView === "symptoms" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setMainView("symptoms")}
-              className="hidden md:flex"
-            >
-              <BarChart2 className="h-4 w-4 mr-2" />
-              <span>Symptoms</span>
-            </Button>
 
             {/* Mobile menu */}
             <Sheet>
