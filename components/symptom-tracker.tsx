@@ -413,78 +413,72 @@ export default function SymptomTracker() {
     <div className="flex h-screen flex-col overflow-hidden">
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="relative container mx-auto px-4">
-          {/* Top row - Title centered */}
-          <div className="flex justify-center items-center h-10 pt-2">
-            <h1 className="font-sans text-xl font-light tracking-wide text-center">Inflammatory Disease Companion</h1>
+        {/* Top row - Title */}
+        <div className="flex justify-center items-center h-10 border-b border-gray-100">
+          <h1 className="font-sans text-xl font-light tracking-wide">Inflammatory Disease Companion</h1>
+        </div>
+
+        {/* Bottom row - Navigation */}
+        <div className="flex h-12 items-center px-4">
+          {/* Left side - Main navigation on desktop */}
+          <div className="hidden md:flex items-center space-x-1 flex-1">
+            {navItems.slice(0, 4).map((item) => (
+              <Button
+                key={item.id}
+                variant={mainView === item.id ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setMainView(item.id as any)}
+              >
+                {item.icon}
+                <span className="ml-2">{item.label}</span>
+              </Button>
+            ))}
           </div>
 
-          {/* Bottom row - Navigation */}
-          <div className="flex justify-between items-center h-10 pb-2">
-            {/* Left side - empty for balance */}
-            <div className="w-1/4"></div>
+          {/* Right side - Symptom button and sign out */}
+          <div className="flex items-center ml-auto space-x-1">
+            <Button
+              variant={mainView === "symptoms" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setMainView("symptoms")}
+              className="hidden md:flex"
+            >
+              <BarChart2 className="h-4 w-4 mr-2" />
+              <span>Symptoms</span>
+            </Button>
+            <SignOutButton />
 
-            {/* Center - Main navigation on desktop */}
-            <div className="hidden md:flex items-center justify-center space-x-1 flex-1">
-              {navItems.slice(0, 4).map((item) => (
-                <Button
-                  key={item.id}
-                  variant={mainView === item.id ? "default" : "ghost"}
-                  size="sm"
-                  className="mx-1"
-                  onClick={() => setMainView(item.id as any)}
-                >
-                  {item.icon}
-                  <span className="ml-2">{item.label}</span>
+            {/* Mobile menu */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden">
+                  <Menu className="h-5 w-5" />
                 </Button>
-              ))}
-            </div>
-
-            {/* Right side - Symptom button and sign out */}
-            <div className="flex items-center justify-end w-1/4 space-x-1">
-              <Button
-                variant={mainView === "symptoms" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setMainView("symptoms")}
-                className="hidden md:flex"
-              >
-                <BarChart2 className="h-4 w-4 mr-2" />
-                <span>Symptoms</span>
-              </Button>
-              <SignOutButton />
-
-              {/* Mobile menu */}
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="md:hidden">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left">
-                  <div className="py-4">
-                    <h2 className="text-lg font-semibold mb-4">Inflammatory Disease Companion</h2>
-                    <nav className="space-y-2">
-                      {navItems.map((item) => (
-                        <Button
-                          key={item.id}
-                          variant={mainView === item.id ? "default" : "ghost"}
-                          className="w-full justify-start"
-                          onClick={() => {
-                            setMainView(item.id as any)
-                          }}
-                        >
-                          {item.icon}
-                          <span className="ml-2">{item.label}</span>
-                        </Button>
-                      ))}
-                      <div className="pt-4 border-t mt-4">
-                        <SignOutButton />
-                      </div>
-                    </nav>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
+              </SheetTrigger>
+              <SheetContent side="left">
+                <div className="py-4">
+                  <h2 className="text-lg font-semibold mb-4">Inflammatory Disease Companion</h2>
+                  <nav className="space-y-2">
+                    {navItems.map((item) => (
+                      <Button
+                        key={item.id}
+                        variant={mainView === item.id ? "default" : "ghost"}
+                        className="w-full justify-start"
+                        onClick={() => {
+                          setMainView(item.id as any)
+                        }}
+                      >
+                        {item.icon}
+                        <span className="ml-2">{item.label}</span>
+                      </Button>
+                    ))}
+                    <div className="pt-4 border-t mt-4">
+                      <SignOutButton />
+                    </div>
+                  </nav>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
