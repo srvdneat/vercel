@@ -28,6 +28,7 @@ import {
   Menu,
   Brain,
   TrendingUp,
+  X,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -37,7 +38,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import SymptomForm from "@/components/symptom-form"
 import SymptomSettings from "@/components/symptom-settings"
 import SymptomChart from "@/components/symptom-chart"
 import MedicationTracker from "@/components/medication-tracker"
@@ -334,13 +334,13 @@ export default function SymptomTracker() {
   const getSeverityColor = (severity: number) => {
     switch (severity) {
       case SEVERITY_LEVELS.MILD:
-        return "bg-[#FF4000]/10 border-[#FF4000]/20 hover:border-[#FF4000]/30"
+        return "bg-yellow-100 border-yellow-200 hover:border-yellow-300" // Pastel yellow for mild
       case SEVERITY_LEVELS.MODERATE:
-        return "bg-[#FF4000]/20 border-[#FF4000]/30 hover:border-[#FF4000]/40"
+        return "bg-orange-100 border-orange-200 hover:border-orange-300" // Pastel orange for moderate
       case SEVERITY_LEVELS.SEVERE:
-        return "bg-[#FF4000]/30 border-[#FF4000]/40 hover:border-[#FF4000]/50"
+        return "bg-[#FF4000]/30 border-[#FF4000]/40 hover:border-[#FF4000]/50" // Keep current shade for severe
       default:
-        return ""
+        return "bg-green-50 border-green-100 hover:border-green-200" // Slight green tint for no symptoms
     }
   }
 
@@ -642,7 +642,7 @@ export default function SymptomTracker() {
                           const medsForDay = getMedicationsForDate(day)
                           const hasSymptom = !!symptom
                           const hasMeds = medsForDay.length > 0
-                          const severityClass = hasSymptom ? getSeverityColor(symptom.severity) : ""
+                          const severityClass = hasSymptom ? getSeverityColor(symptom.severity) : getSeverityColor(0) // Use 0 for no symptoms
                           const isSelected = selectedDays.some((d) => isSameDay(d, day))
 
                           return (
@@ -651,7 +651,6 @@ export default function SymptomTracker() {
                               className={cn(
                                 "h-20 p-1 border rounded-md relative transition-colors",
                                 severityClass,
-                                !hasSymptom && "hover:border-[#FF4000]/30",
                                 isSelected && "ring-2 ring-primary ring-offset-1",
                                 selectionMode && "cursor-pointer",
                               )}
@@ -674,28 +673,41 @@ export default function SymptomTracker() {
 
                                   {!selectionMode && (
                                     <Dialog>
-                                      <DialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-5 w-5 rounded-full hover:bg-[#FF4000]/10"
-                                          onClick={() => setSelectedDate(day)}
-                                        >
-                                          <Plus className="h-3 w-3" />
-                                        </Button>
-                                      </DialogTrigger>
-                                      <DialogContent>
-                                        <DialogHeader>
-                                          <DialogTitle>Log Symptoms for {format(day, "MMMM d, yyyy")}</DialogTitle>
-                                        </DialogHeader>
-                                        <SymptomForm
-                                          date={day}
-                                          existingEntry={symptom}
-                                          symptomTypes={symptomTypes}
-                                          onSubmit={addOrUpdateSymptom}
-                                          onCancel={() => setSelectedDate(null)}
-                                        />
-                                      </DialogContent>
+                                      {hasSymptom ? (
+                                        <DialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-5 w-5 rounded-full hover:bg-red-100"
+                                            onClick={() => {
+                                              // Confirm before deleting
+                                              if (
+                                                window.confirm(`Delete symptoms for ${format(day, "MMMM d, yyyy")}?`)
+                                              ) {
+                                                // Remove the symptom entry
+                                                setSymptoms(symptoms.filter((s) => !isSameDay(s.date, day)))
+                                                toast({
+                                                  title: "Symptoms Deleted",
+                                                  description: `Your symptoms for ${format(day, "MMMM d, yyyy")} have been removed.`,
+                                                })
+                                              }
+                                            }}
+                                          >
+                                            <X className="h-3 w-3 text-red-500" />
+                                          </Button>
+                                        </DialogTrigger>
+                                      ) : (
+                                        <DialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-5 w-5 rounded-full hover:bg-[#FF4000]/10"
+                                            onClick={() => setSelectedDate(day)}
+                                          >
+                                            <Plus className="h-3 w-3" />
+                                          </Button>
+                                        </DialogTrigger>
+                                      )}
                                     </Dialog>
                                   )}
                                 </div>
