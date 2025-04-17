@@ -43,7 +43,7 @@ import AIInsights from "@/components/ai-insights"
 import AIPatternVisualization from "@/components/ai-pattern-visualization"
 import { useToast } from "@/hooks/use-toast"
 // Import the SignOutButton component
-import SignOutButton from "@/components/auth/sign-out-button"
+// import SignOutButton from "@/components/auth/sign-out-button" - removed
 
 // Severity levels
 export const SEVERITY_LEVELS = {
@@ -446,7 +446,6 @@ export default function SymptomTracker() {
               <BarChart2 className="h-4 w-4 mr-2" />
               <span>Symptoms</span>
             </Button>
-            <SignOutButton />
 
             {/* Mobile menu */}
             <Sheet>
@@ -472,9 +471,7 @@ export default function SymptomTracker() {
                         <span className="ml-2">{item.label}</span>
                       </Button>
                     ))}
-                    <div className="pt-4 border-t mt-4">
-                      <SignOutButton />
-                    </div>
+                    <div className="pt-4 border-t mt-4"></div>
                   </nav>
                 </div>
               </SheetContent>
