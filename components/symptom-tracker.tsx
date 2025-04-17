@@ -53,6 +53,9 @@ import { v4 as uuidv4 } from "uuid"
 // Import the SignOutButton component
 // import SignOutButton from "@/components/auth/sign-out-button" - removed
 
+// Import the server action
+import { fetchCurrentWeather } from "@/actions/weather-actions"
+
 // Severity levels
 export const SEVERITY_LEVELS = {
   NONE: 0,
@@ -672,43 +675,55 @@ export default function SymptomTracker() {
                                   {hasMeds && <Pill className="h-3 w-3 text-[#FF4000]" />}
 
                                   {!selectionMode && (
-                                    <Dialog>
+                                    <>
                                       {hasSymptom ? (
-                                        <DialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-5 w-5 rounded-full hover:bg-red-100"
-                                            onClick={() => {
-                                              // Confirm before deleting
-                                              if (
-                                                window.confirm(`Delete symptoms for ${format(day, "MMMM d, yyyy")}?`)
-                                              ) {
-                                                // Remove the symptom entry
-                                                setSymptoms(symptoms.filter((s) => !isSameDay(s.date, day)))
-                                                toast({
-                                                  title: "Symptoms Deleted",
-                                                  description: `Your symptoms for ${format(day, "MMMM d, yyyy")} have been removed.`,
-                                                })
-                                              }
-                                            }}
-                                          >
-                                            <X className="h-3 w-3 text-red-500" />
-                                          </Button>
-                                        </DialogTrigger>
+                                        // Delete button (without DialogTrigger)
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-5 w-5 rounded-full hover:bg-red-100"
+                                          onClick={() => {
+                                            // Confirm before deleting
+                                            if (window.confirm(`Delete symptoms for ${format(day, "MMMM d, yyyy")}?`)) {
+                                              // Remove the symptom entry
+                                              setSymptoms(symptoms.filter((s) => !isSameDay(s.date, day)))
+                                              toast({
+                                                title: "Symptoms Deleted",
+                                                description: `Your symptoms for ${format(day, "MMMM d, yyyy")} have been removed.`,
+                                              })
+                                            }
+                                          }}
+                                        >
+                                          <X className="h-3 w-3 text-red-500" />
+                                        </Button>
                                       ) : (
-                                        <DialogTrigger asChild>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-5 w-5 rounded-full hover:bg-[#FF4000]/10"
-                                            onClick={() => setSelectedDate(day)}
-                                          >
-                                            <Plus className="h-3 w-3" />
-                                          </Button>
-                                        </DialogTrigger>
+                                        // Add button (with DialogTrigger)
+                                        <Dialog>
+                                          <DialogTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-5 w-5 rounded-full hover:bg-[#FF4000]/10"
+                                              onClick={() => setSelectedDate(day)}
+                                            >
+                                              <Plus className="h-3 w-3" />
+                                            </Button>
+                                          </DialogTrigger>
+                                          <DialogContent>
+                                            <DialogHeader>
+                                              <DialogTitle>Log Symptoms for {format(day, "MMMM d, yyyy")}</DialogTitle>
+                                            </DialogHeader>
+                                            <SymptomForm
+                                              date={day}
+                                              existingEntry={symptom}
+                                              symptomTypes={symptomTypes}
+                                              onSubmit={addOrUpdateSymptom}
+                                              onCancel={() => setSelectedDate(null)}
+                                            />
+                                          </DialogContent>
+                                        </Dialog>
                                       )}
-                                    </Dialog>
+                                    </>
                                   )}
                                 </div>
                               </div>
@@ -1079,4 +1094,126 @@ function getMostCommonSymptoms(entries: SymptomEntry[], symptomTypes: string[]) 
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5) // Top 5 symptoms
+}
+
+// Symptom Form Component
+function SymptomForm({
+  date,
+  existingEntry,
+  symptomTypes,
+  onSubmit,
+  onCancel,
+}: {
+  date: Date
+  existingEntry?: SymptomEntry
+  symptomTypes: string[]
+  onSubmit: (entry: SymptomEntry) => void
+  onCancel: () => void
+}) {
+  const [severity, setSeverity] = useState<number>(existingEntry?.severity || 1)
+  const [notes, setNotes] = useState<string>(existingEntry?.notes || "")
+
+  // Initialize symptoms object with all types set to false by default
+  const initialSymptoms: Record<string, boolean> = {}
+  symptomTypes.forEach((type) => {
+    initialSymptoms[type] = existingEntry?.symptoms[type] || false
+  })
+
+  const [selectedSymptoms, setSelectedSymptoms] = useState<Record<string, boolean>>(initialSymptoms)
+
+  const toggleSymptom = (symptom: string) => {
+    setSelectedSymptoms({
+      ...selectedSymptoms,
+      [symptom]: !selectedSymptoms[symptom],
+    })
+  }
+
+  const handleSubmit = async () => {
+    try {
+      // Use the server action to fetch weather data
+      const weather = await fetchCurrentWeather()
+
+      const newEntry: SymptomEntry = {
+        id: existingEntry?.id || uuidv4(),
+        date: date,
+        severity,
+        notes,
+        symptoms: selectedSymptoms,
+        weather: weather,
+      }
+
+      onSubmit(newEntry)
+    } catch (error) {
+      console.error("Failed to fetch weather data", error)
+
+      const newEntry: SymptomEntry = {
+        id: existingEntry?.id || uuidv4(),
+        date: date,
+        severity,
+        notes,
+        symptoms: selectedSymptoms,
+        weather: null, // Weather data failed to load
+      }
+
+      onSubmit(newEntry)
+    }
+  }
+
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="space-y-2">
+        <Label>Severity</Label>
+        <RadioGroup value={severity.toString()} onValueChange={(value) => setSeverity(Number.parseInt(value))}>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="1" id="severity-mild" />
+            <Label htmlFor="severity-mild">Mild</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="2" id="severity-moderate" />
+            <Label htmlFor="severity-moderate">Moderate</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="3" id="severity-severe" />
+            <Label htmlFor="severity-severe">Severe</Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Symptoms</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-2">
+          {symptomTypes.map((symptom) => (
+            <div key={symptom} className="flex items-center space-x-2">
+              <Checkbox
+                id={`symptom-${symptom}`}
+                checked={selectedSymptoms[symptom]}
+                onCheckedChange={() => toggleSymptom(symptom)}
+              />
+              <Label htmlFor={`symptom-${symptom}`} className="text-sm">
+                {symptom}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="notes">Notes</Label>
+        <Textarea
+          id="notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Add any additional notes about these symptoms..."
+          className="min-h-[100px]"
+        />
+      </div>
+
+      <div className="flex justify-between mt-4">
+        <Button variant="outline" onClick={onCancel} type="button">
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit}>Save Symptoms</Button>
+      </div>
+    </div>
+  )
 }

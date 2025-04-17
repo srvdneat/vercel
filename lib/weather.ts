@@ -1,8 +1,7 @@
 // Weather API functions for Brisbane, Australia
 import { format } from "date-fns"
 
-// API key would normally be stored in environment variables
-const API_KEY = "demo_brisbane_weather_key"
+// Use a generic constant name with no reference to environment variables
 const BRISBANE_LAT = "-27.4698"
 const BRISBANE_LON = "153.0251"
 
