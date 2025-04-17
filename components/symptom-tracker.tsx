@@ -1,5 +1,9 @@
 "use client"
 
+import { Label } from "@/components/ui/label"
+
+import { DialogTrigger } from "@/components/ui/dialog"
+
 import { useState, useEffect } from "react"
 import {
   format,
@@ -29,7 +33,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -42,6 +46,10 @@ import EmergencyContacts, { type EmergencyContact } from "@/components/emergency
 import AIInsights from "@/components/ai-insights"
 import AIPatternVisualization from "@/components/ai-pattern-visualization"
 import { useToast } from "@/hooks/use-toast"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Textarea } from "@/components/ui/textarea"
+import { v4 as uuidv4 } from "uuid"
 // Import the SignOutButton component
 // import SignOutButton from "@/components/auth/sign-out-button" - removed
 
@@ -108,6 +116,11 @@ export default function SymptomTracker() {
     "symptoms" | "medications" | "weather" | "emergency" | "insights" | "patterns"
   >("symptoms")
   const { toast } = useToast()
+
+  const [selectionMode, setSelectionMode] = useState<boolean>(false)
+  const [selectionStart, setSelectionStart] = useState<Date | null>(null)
+  const [selectedDays, setSelectedDays] = useState<Date[]>([])
+  const [bulkEntryOpen, setBulkEntryOpen] = useState<boolean>(false)
 
   // Load saved data on component mount
   useEffect(() => {
@@ -236,7 +249,10 @@ export default function SymptomTracker() {
       })
     }
 
+    // Close the dialog and ensure we're on the symptoms view
     setSelectedDate(null)
+    setMainView("symptoms")
+    setActiveTab("calendar")
   }
 
   // Add or update medication
@@ -409,39 +425,104 @@ export default function SymptomTracker() {
     { id: "patterns", label: "Patterns", icon: <TrendingUp className="h-4 w-4" /> },
   ]
 
+  // Handle day selection for recurring symptoms
+  const handleDaySelect = (day: Date) => {
+    if (!selectionMode) {
+      // Regular single day selection
+      setSelectedDate(day)
+      return
+    }
+
+    // In selection mode
+    if (!selectionStart) {
+      // Start new selection
+      setSelectionStart(day)
+      setSelectedDays([day])
+    } else {
+      // Calculate all days between start and current
+      const start = new Date(Math.min(selectionStart.getTime(), day.getTime()))
+      const end = new Date(Math.max(selectionStart.getTime(), day.getTime()))
+
+      const daysInRange = eachDayOfInterval({ start, end })
+      setSelectedDays(daysInRange)
+    }
+  }
+
+  // Handle mouse up to complete selection
+  const handleSelectionComplete = () => {
+    if (selectionMode && selectedDays.length > 0) {
+      setBulkEntryOpen(true)
+    }
+  }
+
+  // Add bulk symptoms to multiple days
+  const addBulkSymptoms = (severity: number, selectedSymptoms: Record<string, boolean>, notes: string) => {
+    const newEntries = selectedDays.map((day) => ({
+      id: uuidv4(),
+      date: day,
+      severity,
+      notes,
+      symptoms: selectedSymptoms,
+      weather: null, // We don't fetch weather for bulk entries
+    }))
+
+    // Add or update each entry
+    newEntries.forEach((entry) => {
+      const existingIndex = symptoms.findIndex((s) => isSameDay(s.date, entry.date))
+      if (existingIndex >= 0) {
+        const updatedSymptoms = [...symptoms]
+        updatedSymptoms[existingIndex] = entry
+        setSymptoms(updatedSymptoms)
+      } else {
+        setSymptoms((prev) => [...prev, entry])
+      }
+    })
+
+    toast({
+      title: "Bulk Symptoms Added",
+      description: `Symptoms added for ${newEntries.length} days.`,
+    })
+
+    // Reset selection state
+    setSelectionMode(false)
+    setSelectionStart(null)
+    setSelectedDays([])
+    setBulkEntryOpen(false)
+  }
+
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         {/* Top row - Title */}
-        <div className="flex justify-center items-center h-10 border-b border-gray-100">
-          <h1 className="font-sans text-xl font-light tracking-wide">Inflammatory Disease Companion</h1>
+        <div className="flex justify-center items-center h-14 border-b border-gray-100 py-3">
+          <h1 className="font-sans text-2xl font-medium tracking-wide">Inflammatory Disease Companion</h1>
         </div>
 
         {/* Bottom row - Navigation */}
-        <div className="flex h-12 items-center px-4">
-          {/* Left side - Empty space */}
-          <div className="flex-1"></div>
-
-          {/* Right side - Main navigation */}
-          <div className="flex items-center ml-auto space-x-1">
-            {navItems.map((item) => (
-              <Button
-                key={item.id}
-                variant={mainView === item.id ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setMainView(item.id as any)}
-                className="hidden md:flex"
-              >
-                {item.icon}
-                <span className="ml-2">{item.label}</span>
-              </Button>
-            ))}
+        <div className="flex h-14 items-center justify-center px-4">
+          {/* Center container for navigation */}
+          <div className="flex items-center justify-center max-w-4xl w-full">
+            {/* Navigation items */}
+            <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
+              {navItems.map((item) => (
+                <Button
+                  key={item.id}
+                  variant={mainView === item.id ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setMainView(item.id as any)}
+                  className="hidden md:flex whitespace-nowrap"
+                >
+                  {item.icon}
+                  <span className="ml-2">{item.label}</span>
+                </Button>
+              ))}
+            </div>
 
             {/* Mobile menu */}
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
+                <Button variant="ghost" size="icon" className="md:hidden ml-auto">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
@@ -456,6 +537,8 @@ export default function SymptomTracker() {
                         className="w-full justify-start"
                         onClick={() => {
                           setMainView(item.id as any)
+                          // Close the sheet when an item is selected
+                          document.querySelector("[data-radix-collection-item]")?.click()
                         }}
                       >
                         {item.icon}
@@ -493,28 +576,50 @@ export default function SymptomTracker() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <TabsList>
-                          <TabsTrigger value="calendar">Calendar</TabsTrigger>
-                          <TabsTrigger value="chart">Chart</TabsTrigger>
-                        </TabsList>
+                        <div className="flex items-center gap-2">
+                          <TabsList>
+                            <TabsTrigger value="calendar">Calendar</TabsTrigger>
+                            <TabsTrigger value="chart">Chart</TabsTrigger>
+                          </TabsList>
 
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Settings className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Symptom Settings</DialogTitle>
-                            </DialogHeader>
-                            <SymptomSettings symptomTypes={symptomTypes} onUpdate={updateSymptomTypes} />
-                          </DialogContent>
-                        </Dialog>
+                          <Button
+                            variant={selectionMode ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              setSelectionMode(!selectionMode)
+                              if (!selectionMode) {
+                                toast({
+                                  title: "Multi-day Selection Enabled",
+                                  description: "Click and drag to select multiple days for bulk symptom entry.",
+                                })
+                              } else {
+                                setSelectionStart(null)
+                                setSelectedDays([])
+                              }
+                            }}
+                            className="h-8"
+                          >
+                            {selectionMode ? "Cancel Selection" : "Select Multiple Days"}
+                          </Button>
 
-                        <Button variant="ghost" size="icon" onClick={exportAsCSV} className="h-8 w-8">
-                          <Download className="h-4 w-4" />
-                        </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Settings className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Symptom Settings</DialogTitle>
+                              </DialogHeader>
+                              <SymptomSettings symptomTypes={symptomTypes} onUpdate={updateSymptomTypes} />
+                            </DialogContent>
+                          </Dialog>
+
+                          <Button variant="ghost" size="icon" onClick={exportAsCSV} className="h-8 w-8">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
@@ -538,6 +643,7 @@ export default function SymptomTracker() {
                           const hasSymptom = !!symptom
                           const hasMeds = medsForDay.length > 0
                           const severityClass = hasSymptom ? getSeverityColor(symptom.severity) : ""
+                          const isSelected = selectedDays.some((d) => isSameDay(d, day))
 
                           return (
                             <div
@@ -546,7 +652,12 @@ export default function SymptomTracker() {
                                 "h-20 p-1 border rounded-md relative transition-colors",
                                 severityClass,
                                 !hasSymptom && "hover:border-[#FF4000]/30",
+                                isSelected && "ring-2 ring-primary ring-offset-1",
+                                selectionMode && "cursor-pointer",
                               )}
+                              onMouseDown={() => selectionMode && handleDaySelect(day)}
+                              onMouseOver={() => selectionMode && selectionStart && handleDaySelect(day)}
+                              onMouseUp={() => selectionMode && handleSelectionComplete()}
                             >
                               <div className="flex justify-between items-start">
                                 <span
@@ -561,30 +672,32 @@ export default function SymptomTracker() {
                                 <div className="flex gap-1">
                                   {hasMeds && <Pill className="h-3 w-3 text-[#FF4000]" />}
 
-                                  <Dialog>
-                                    <DialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5 rounded-full hover:bg-[#FF4000]/10"
-                                        onClick={() => setSelectedDate(day)}
-                                      >
-                                        <Plus className="h-3 w-3" />
-                                      </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                      <DialogHeader>
-                                        <DialogTitle>Log Symptoms for {format(day, "MMMM d, yyyy")}</DialogTitle>
-                                      </DialogHeader>
-                                      <SymptomForm
-                                        date={day}
-                                        existingEntry={symptom}
-                                        symptomTypes={symptomTypes}
-                                        onSubmit={addOrUpdateSymptom}
-                                        onCancel={() => setSelectedDate(null)}
-                                      />
-                                    </DialogContent>
-                                  </Dialog>
+                                  {!selectionMode && (
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-5 w-5 rounded-full hover:bg-[#FF4000]/10"
+                                          onClick={() => setSelectedDate(day)}
+                                        >
+                                          <Plus className="h-3 w-3" />
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent>
+                                        <DialogHeader>
+                                          <DialogTitle>Log Symptoms for {format(day, "MMMM d, yyyy")}</DialogTitle>
+                                        </DialogHeader>
+                                        <SymptomForm
+                                          date={day}
+                                          existingEntry={symptom}
+                                          symptomTypes={symptomTypes}
+                                          onSubmit={addOrUpdateSymptom}
+                                          onCancel={() => setSelectedDate(null)}
+                                        />
+                                      </DialogContent>
+                                    </Dialog>
+                                  )}
                                 </div>
                               </div>
 
@@ -815,7 +928,123 @@ export default function SymptomTracker() {
             <AIPatternVisualization symptoms={symptoms} medications={medications} symptomTypes={symptomTypes} />
           )}
         </div>
+
+        {/* Bulk Entry Dialog */}
+        <Dialog open={bulkEntryOpen} onOpenChange={setBulkEntryOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Log Symptoms for Multiple Days</DialogTitle>
+              <DialogDescription>
+                Adding symptoms for {selectedDays.length} days:{" "}
+                {selectedDays.length > 0 &&
+                  `${format(selectedDays[0], "MMM d")} - ${format(selectedDays[selectedDays.length - 1], "MMM d")}`}
+              </DialogDescription>
+            </DialogHeader>
+
+            <BulkSymptomForm
+              symptomTypes={symptomTypes}
+              onSubmit={(severity, symptoms, notes) => addBulkSymptoms(severity, symptoms, notes)}
+              onCancel={() => {
+                setBulkEntryOpen(false)
+                setSelectionMode(false)
+                setSelectionStart(null)
+                setSelectedDays([])
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       </main>
+    </div>
+  )
+}
+
+// Bulk Symptom Form Component
+function BulkSymptomForm({
+  symptomTypes,
+  onSubmit,
+  onCancel,
+}: {
+  symptomTypes: string[]
+  onSubmit: (severity: number, symptoms: Record<string, boolean>, notes: string) => void
+  onCancel: () => void
+}) {
+  const [severity, setSeverity] = useState<number>(1)
+  const [notes, setNotes] = useState<string>("")
+
+  // Initialize symptoms object with all types set to false by default
+  const initialSymptoms: Record<string, boolean> = {}
+  symptomTypes.forEach((type) => {
+    initialSymptoms[type] = false
+  })
+
+  const [selectedSymptoms, setSelectedSymptoms] = useState<Record<string, boolean>>(initialSymptoms)
+
+  const toggleSymptom = (symptom: string) => {
+    setSelectedSymptoms({
+      ...selectedSymptoms,
+      [symptom]: !selectedSymptoms[symptom],
+    })
+  }
+
+  const handleSubmit = () => {
+    onSubmit(severity, selectedSymptoms, notes)
+  }
+
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="space-y-2">
+        <Label>Severity</Label>
+        <RadioGroup value={severity.toString()} onValueChange={(value) => setSeverity(Number.parseInt(value))}>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="1" id="bulk-severity-mild" />
+            <Label htmlFor="bulk-severity-mild">Mild</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="2" id="bulk-severity-moderate" />
+            <Label htmlFor="bulk-severity-moderate">Moderate</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="3" id="bulk-severity-severe" />
+            <Label htmlFor="bulk-severity-severe">Severe</Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Symptoms</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-2">
+          {symptomTypes.map((symptom) => (
+            <div key={symptom} className="flex items-center space-x-2">
+              <Checkbox
+                id={`bulk-symptom-${symptom}`}
+                checked={selectedSymptoms[symptom]}
+                onCheckedChange={() => toggleSymptom(symptom)}
+              />
+              <Label htmlFor={`bulk-symptom-${symptom}`} className="text-sm">
+                {symptom}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="bulk-notes">Notes</Label>
+        <Textarea
+          id="bulk-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Add any additional notes about these symptoms..."
+          className="min-h-[100px]"
+        />
+      </div>
+
+      <div className="flex justify-between mt-4">
+        <Button variant="outline" onClick={onCancel} type="button">
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit}>Save Symptoms for {selectedSymptoms.length} Days</Button>
+      </div>
     </div>
   )
 }
