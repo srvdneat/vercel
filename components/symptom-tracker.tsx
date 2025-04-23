@@ -493,6 +493,29 @@ export default function SymptomTracker() {
     setBulkEntryOpen(false)
   }
 
+  // Responsive grid columns based on screen size
+  const getGridColumns = () => {
+    if (typeof window !== "undefined") {
+      const width = window.innerWidth
+      if (width < 640) return "grid-cols-1" // Mobile
+      if (width < 1024) return "grid-cols-2" // Tablet
+      return "grid-cols-3" // Desktop
+    }
+    return "grid-cols-1" // Default for SSR
+  }
+
+  const [gridColumns, setGridColumns] = useState(getGridColumns())
+
+  // Update grid columns on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setGridColumns(getGridColumns())
+    }
+
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       {/* Header */}

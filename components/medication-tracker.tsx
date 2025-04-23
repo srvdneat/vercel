@@ -7,15 +7,7 @@ import { v4 as uuidv4 } from "uuid"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -26,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { scheduleNotification, cancelNotification } from "@/lib/notifications"
+import { useToast } from "@/hooks/use-toast"
 
 interface MedicationTrackerProps {
   medications: MedicationEntry[]
@@ -41,6 +34,7 @@ export default function MedicationTracker({
   onDeleteMedication,
 }: MedicationTrackerProps) {
   const [editingMedication, setEditingMedication] = useState<MedicationEntry | null>(null)
+  const { toast } = useToast()
 
   const handleAddOrUpdate = (medication: MedicationEntry) => {
     if (editingMedication) {
@@ -51,16 +45,47 @@ export default function MedicationTracker({
     setEditingMedication(null)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (medication: MedicationEntry) => {
     // Cancel any notifications for this medication
-    const medication = medications.find((m) => m.id === id)
-    if (medication && medication.reminderEnabled) {
+    if (medication.reminderEnabled) {
       medication.times.forEach((time) => {
         cancelNotification(`${medication.id}-${time}`)
       })
     }
 
-    onDeleteMedication(id)
+    // Delete the medication
+    onDeleteMedication(medication.id)
+
+    // Show toast with undo option
+    toast({
+      title: "Medication removed",
+      description: `${medication.name} has been removed`,
+      action: (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            onAddMedication(medication)
+            if (medication.reminderEnabled) {
+              medication.times.forEach((time) => {
+                scheduleNotification(
+                  `${medication.id}-${time}`,
+                  `Time to take ${medication.name}`,
+                  `Take ${medication.dosage} of ${medication.name}`,
+                  time,
+                )
+              })
+            }
+            toast({
+              title: "Medication restored",
+              description: `${medication.name} has been restored`,
+            })
+          }}
+        >
+          Undo
+        </Button>
+      ),
+    })
   }
 
   const toggleReminder = (medication: MedicationEntry) => {
@@ -172,30 +197,14 @@ export default function MedicationTracker({
                               />
                             </DialogContent>
                           </Dialog>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Delete Medication</DialogTitle>
-                              </DialogHeader>
-                              <div className="py-4">
-                                <p>Are you sure you want to delete {medication.name}?</p>
-                                <p className="text-sm text-muted-foreground mt-2">This action cannot be undone.</p>
-                              </div>
-                              <DialogFooter>
-                                <DialogClose asChild>
-                                  <Button variant="outline">Cancel</Button>
-                                </DialogClose>
-                                <Button variant="destructive" onClick={() => handleDelete(medication.id)}>
-                                  Delete
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleDelete(medication)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
                         </div>
                       </div>
 

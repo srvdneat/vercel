@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Lightbulb, RefreshCw } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Lightbulb, RefreshCw, AlertTriangle, Info } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { generateText } from "ai"
 import { groq } from "@ai-sdk/groq"
 import type { SymptomEntry, MedicationEntry } from "@/components/symptom-tracker"
@@ -23,8 +24,25 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
   const [insights, setInsights] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confidenceScores, setConfidenceScores] = useState<number[]>([])
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+
+  // Check if we have enough data for meaningful insights
+  const hasEnoughData = symptoms.length >= 5
+
+  // Auto-generate insights when component mounts if we have enough data
+  useEffect(() => {
+    if (hasEnoughData && insights.length === 0) {
+      generateInsights()
+    }
+  }, [])
 
   const generateInsights = async () => {
+    if (!hasEnoughData) {
+      setError("At least 5 symptom entries are needed to generate insights.")
+      return
+    }
+
     setIsLoading(true)
     setError(null)
 
@@ -77,7 +95,12 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
         2. Explain why it matters for inflammatory conditions
         3. Suggest a specific action the patient could take
         
-        Format each insight as a separate paragraph. Be specific, evidence-based, and compassionate.
+        For each insight, also provide a confidence score from 1-100 indicating how confident you are in this insight based on the available data.
+        
+        Format your response as a JSON array with objects containing "insight" and "confidence" properties.
+        Example: [{"insight": "Your symptoms tend to worsen on days with high humidity...", "confidence": 85}, {...}]
+        
+        Be specific, evidence-based, and compassionate.
         Do not include generic advice that isn't based on the patient's specific data.
         Focus on correlations between symptoms, medications, weather, and timing.
       `
@@ -90,13 +113,27 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
           "You are a medical AI assistant specializing in inflammatory conditions. Provide evidence-based insights for patients tracking their symptoms.",
       })
 
-      // Split the response into separate insights
-      const insightList = text
-        .split("\n\n")
-        .filter((insight) => insight.trim().length > 0)
-        .map((insight) => insight.trim())
+      try {
+        // Try to parse the response as JSON
+        const parsedResponse = JSON.parse(text)
+        const insightList = parsedResponse.map((item: any) => item.insight)
+        const confidenceList = parsedResponse.map((item: any) => item.confidence)
 
-      setInsights(insightList)
+        setInsights(insightList)
+        setConfidenceScores(confidenceList)
+        setLastUpdated(new Date())
+      } catch (parseError) {
+        // If JSON parsing fails, fall back to text splitting
+        console.error("Failed to parse AI response as JSON:", parseError)
+        const insightList = text
+          .split("\n\n")
+          .filter((insight) => insight.trim().length > 0)
+          .map((insight) => insight.trim())
+
+        setInsights(insightList)
+        setConfidenceScores(Array(insightList.length).fill(70)) // Default confidence
+        setLastUpdated(new Date())
+      }
     } catch (err) {
       console.error("Error generating insights:", err)
       setError("Failed to generate insights. Please try again later.")
@@ -116,11 +153,7 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
             </CardTitle>
             <CardDescription>Get personalized insights about your condition</CardDescription>
           </div>
-          <Button
-            onClick={generateInsights}
-            disabled={isLoading || symptoms.length < 5}
-            className="flex items-center gap-2"
-          >
+          <Button onClick={generateInsights} disabled={isLoading || !hasEnoughData} className="flex items-center gap-2">
             {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
             {isLoading ? "Analyzing..." : "Generate Insights"}
           </Button>
@@ -128,9 +161,10 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
       </CardHeader>
 
       <CardContent className="p-4">
-        {symptoms.length < 5 ? (
+        {!hasEnoughData ? (
           <Alert>
-            <AlertDescription>
+            <AlertDescription className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
               Log at least 5 symptom entries to generate AI insights about your condition.
             </AlertDescription>
           </Alert>
@@ -155,15 +189,36 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
             <div className="space-y-4">
               {insights.map((insight, index) => (
                 <div key={index} className="space-y-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <Badge variant="outline" className="bg-primary/5">
                       Insight {index + 1}
                     </Badge>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Info className="h-3 w-3" />
+                            Confidence: {confidenceScores[index] || "N/A"}%
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">
+                            Confidence score indicates how reliable this insight is based on your data
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <p className="text-sm">{insight}</p>
                   {index < insights.length - 1 && <Separator className="my-2" />}
                 </div>
               ))}
+
+              {lastUpdated && (
+                <p className="text-xs text-muted-foreground mt-4 text-right">
+                  Last updated: {lastUpdated.toLocaleString()}
+                </p>
+              )}
             </div>
           </ScrollArea>
         ) : (
