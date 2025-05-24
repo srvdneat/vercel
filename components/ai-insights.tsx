@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { generateText } from "ai"
-import { groq } from "@ai-sdk/groq"
+import { createGroq } from "@ai-sdk/groq"
 import type { SymptomEntry, MedicationEntry } from "@/components/symptom-tracker"
 
 interface AIInsightsProps {
@@ -104,6 +104,11 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
         Do not include generic advice that isn't based on the patient's specific data.
         Focus on correlations between symptoms, medications, weather, and timing.
       `
+
+      // Initialize Groq with API key
+      const groq = createGroq({
+        apiKey: process.env.GROQ_API_KEY,
+      })
 
       // Call Groq API
       const { text } = await generateText({

@@ -25,7 +25,7 @@ import {
   Area,
 } from "recharts"
 import { generateText } from "ai"
-import { groq } from "@ai-sdk/groq"
+import { createGroq } from "@ai-sdk/groq"
 import { Brain, RefreshCw, Calendar, Info, AlertTriangle, TrendingUp } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -171,11 +171,16 @@ export default function AIPatternVisualization({ symptoms, medications, symptomT
             ...
           ]
           
-          IMPORTANT: Your response MUST be a valid JSON array that can be parsed with JSON.parse(). Do not include any text before or after the JSON array.
+          IMPORTANT: Your response MUST be a valid JSON array that can be parsed with JSON.parse(). Do not include any text before or after the JSON array. Do not include any text before or after the JSON array.
           
           Focus on finding real patterns in the data. If a pattern is weak or not present, assign a lower confidence score.
           Ensure the data is properly formatted for direct use in charts.
         `
+
+      // Initialize Groq with API key
+      const groq = createGroq({
+        apiKey: process.env.GROQ_API_KEY,
+      })
 
       // Call Groq API
       const { text } = await generateText({

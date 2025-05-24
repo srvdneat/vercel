@@ -1,9 +1,7 @@
 "use client"
 
 import { Label } from "@/components/ui/label"
-
 import { DialogTrigger } from "@/components/ui/dialog"
-
 import { useState, useEffect } from "react"
 import {
   format,
@@ -29,6 +27,7 @@ import {
   Brain,
   TrendingUp,
   X,
+  Sparkles,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -50,10 +49,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { v4 as uuidv4 } from "uuid"
-// Import the SignOutButton component
-// import SignOutButton from "@/components/auth/sign-out-button" - removed
-
-// Import the server action
 import { fetchCurrentWeather } from "@/actions/weather-actions"
 
 // Severity levels
@@ -135,7 +130,6 @@ export default function SymptomTracker() {
     if (savedSymptoms) {
       try {
         const parsed = JSON.parse(savedSymptoms)
-        // Convert string dates back to Date objects
         setSymptoms(
           parsed.map((entry: any) => ({
             ...entry,
@@ -158,7 +152,6 @@ export default function SymptomTracker() {
     if (savedMedications) {
       try {
         const parsed = JSON.parse(savedMedications)
-        // Convert string dates back to Date objects
         setMedications(
           parsed.map((entry: any) => ({
             ...entry,
@@ -182,7 +175,6 @@ export default function SymptomTracker() {
 
   // Save data when it changes
   useEffect(() => {
-    // Convert Date objects to ISO strings for storage
     const symptomsToSave = symptoms.map((entry) => ({
       ...entry,
       date: entry.date.toISOString(),
@@ -195,7 +187,6 @@ export default function SymptomTracker() {
   }, [symptomTypes])
 
   useEffect(() => {
-    // Convert Date objects to ISO strings for storage
     const medicationsToSave = medications.map((entry) => ({
       ...entry,
       startDate: entry.startDate.toISOString(),
@@ -226,8 +217,7 @@ export default function SymptomTracker() {
   const getMedicationsForDate = (date: Date) => {
     return medications.filter((med) => {
       const startDate = new Date(med.startDate)
-      const endDate = med.endDate ? new Date(med.endDate) : new Date(2099, 11, 31) // Far future date if no end date
-
+      const endDate = med.endDate ? new Date(med.endDate) : new Date(2099, 11, 31)
       return date >= startDate && date <= endDate
     })
   }
@@ -252,7 +242,6 @@ export default function SymptomTracker() {
       })
     }
 
-    // Close the dialog and ensure we're on the symptoms view
     setSelectedDate(null)
     setMainView("symptoms")
     setActiveTab("calendar")
@@ -333,23 +322,22 @@ export default function SymptomTracker() {
     })
   }
 
-  // Get color based on severity
+  // Get color based on severity with glass effect
   const getSeverityColor = (severity: number) => {
     switch (severity) {
       case SEVERITY_LEVELS.MILD:
-        return "bg-yellow-100 border-yellow-200 hover:border-yellow-300" // Pastel yellow for mild
+        return "bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 border-yellow-500/30 hover:border-yellow-400/50 glow-accent"
       case SEVERITY_LEVELS.MODERATE:
-        return "bg-orange-100 border-orange-200 hover:border-orange-300" // Pastel orange for moderate
+        return "bg-gradient-to-br from-orange-500/20 to-orange-600/10 border-orange-500/30 hover:border-orange-400/50 glow-secondary"
       case SEVERITY_LEVELS.SEVERE:
-        return "bg-[#FF4000]/30 border-[#FF4000]/40 hover:border-[#FF4000]/50" // Keep current shade for severe
+        return "bg-gradient-to-br from-red-500/20 to-red-600/10 border-red-500/30 hover:border-red-400/50 glow-primary"
       default:
-        return "bg-green-50 border-green-100 hover:border-green-200" // Slight green tint for no symptoms
+        return "bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-500/20 hover:border-emerald-400/30"
     }
   }
 
   // Export data as CSV
   const exportAsCSV = () => {
-    // Filter symptoms for current month
     const currentMonthSymptoms = symptoms.filter(
       (s) => s.date.getMonth() === currentDate.getMonth() && s.date.getFullYear() === currentDate.getFullYear(),
     )
@@ -363,46 +351,31 @@ export default function SymptomTracker() {
       return
     }
 
-    // Create CSV header
     let csvContent = "Date,Severity,Notes,"
-
-    // Add all possible symptom types as columns
     symptomTypes.forEach((type) => {
       csvContent += `${type},`
     })
+    csvContent += "Temperature,Humidity,Pressure,UV Index,Wind Speed,Weather Description,Medications\n"
 
-    // Add weather columns
-    csvContent += "Temperature,Humidity,Pressure,UV Index,Wind Speed,Weather Description,"
-
-    // Add medications column
-    csvContent += "Medications\n"
-
-    // Add data rows
     currentMonthSymptoms.forEach((entry) => {
       const severityText = entry.severity === 1 ? "Mild" : entry.severity === 2 ? "Moderate" : "Severe"
-
-      // Format date and add severity and notes
       csvContent += `${format(entry.date, "yyyy-MM-dd")},${severityText},"${entry.notes.replace(/"/g, '""')}",`
 
-      // Add symptom presence (Yes/No) for each type
       symptomTypes.forEach((type) => {
         csvContent += `${entry.symptoms[type] ? "Yes" : "No"},`
       })
 
-      // Add weather data
       csvContent += `${entry.weather?.temperature || ""},${entry.weather?.humidity || ""},${entry.weather?.pressure || ""},${entry.weather?.uvIndex || ""},${entry.weather?.windSpeed || ""},"${entry.weather?.description || ""}",`
 
-      // Add medications for this date
       const medsForDate = getMedicationsForDate(entry.date)
       csvContent += `"${medsForDate.map((m) => `${m.name} (${m.dosage})`).join("; ")}"\n`
     })
 
-    // Create and trigger download
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.setAttribute("href", url)
-    link.setAttribute("download", `brisbane-symptom-tracker-${format(currentDate, "yyyy-MM")}.csv`)
+    link.setAttribute("download", `health-tracker-${format(currentDate, "yyyy-MM")}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -418,34 +391,54 @@ export default function SymptomTracker() {
     (s) => s.date.getMonth() === currentDate.getMonth() && s.date.getFullYear() === currentDate.getFullYear(),
   )
 
-  // Navigation items
+  // Navigation items with enhanced styling
   const navItems = [
-    { id: "symptoms", label: "Symptoms", icon: <BarChart2 className="h-4 w-4" /> },
-    { id: "medications", label: "Medications", icon: <Pill className="h-4 w-4" /> },
-    { id: "weather", label: "Weather", icon: <Cloud className="h-4 w-4" /> },
-    { id: "emergency", label: "Emergency", icon: <Phone className="h-4 w-4" /> },
-    { id: "insights", label: "AI Insights", icon: <Brain className="h-4 w-4" /> },
-    { id: "patterns", label: "Patterns", icon: <TrendingUp className="h-4 w-4" /> },
+    {
+      id: "symptoms",
+      label: "Symptoms",
+      icon: <BarChart2 className="h-4 w-4" />,
+      gradient: "from-purple-500 to-pink-500",
+    },
+    {
+      id: "medications",
+      label: "Medications",
+      icon: <Pill className="h-4 w-4" />,
+      gradient: "from-blue-500 to-cyan-500",
+    },
+    { id: "weather", label: "Weather", icon: <Cloud className="h-4 w-4" />, gradient: "from-cyan-500 to-blue-500" },
+    {
+      id: "emergency",
+      label: "Emergency",
+      icon: <Phone className="h-4 w-4" />,
+      gradient: "from-red-500 to-orange-500",
+    },
+    {
+      id: "insights",
+      label: "AI Insights",
+      icon: <Brain className="h-4 w-4" />,
+      gradient: "from-violet-500 to-purple-500",
+    },
+    {
+      id: "patterns",
+      label: "Patterns",
+      icon: <TrendingUp className="h-4 w-4" />,
+      gradient: "from-emerald-500 to-teal-500",
+    },
   ]
 
   // Handle day selection for recurring symptoms
   const handleDaySelect = (day: Date) => {
     if (!selectionMode) {
-      // Regular single day selection
       setSelectedDate(day)
       return
     }
 
-    // In selection mode
     if (!selectionStart) {
-      // Start new selection
       setSelectionStart(day)
       setSelectedDays([day])
     } else {
-      // Calculate all days between start and current
       const start = new Date(Math.min(selectionStart.getTime(), day.getTime()))
       const end = new Date(Math.max(selectionStart.getTime(), day.getTime()))
-
       const daysInRange = eachDayOfInterval({ start, end })
       setSelectedDays(daysInRange)
     }
@@ -466,10 +459,9 @@ export default function SymptomTracker() {
       severity,
       notes,
       symptoms: selectedSymptoms,
-      weather: null, // We don't fetch weather for bulk entries
+      weather: null,
     }))
 
-    // Add or update each entry
     newEntries.forEach((entry) => {
       const existingIndex = symptoms.findIndex((s) => isSameDay(s.date, entry.date))
       if (existingIndex >= 0) {
@@ -486,50 +478,31 @@ export default function SymptomTracker() {
       description: `Symptoms added for ${newEntries.length} days.`,
     })
 
-    // Reset selection state
     setSelectionMode(false)
     setSelectionStart(null)
     setSelectedDays([])
     setBulkEntryOpen(false)
   }
 
-  // Responsive grid columns based on screen size
-  const getGridColumns = () => {
-    if (typeof window !== "undefined") {
-      const width = window.innerWidth
-      if (width < 640) return "grid-cols-1" // Mobile
-      if (width < 1024) return "grid-cols-2" // Tablet
-      return "grid-cols-3" // Desktop
-    }
-    return "grid-cols-1" // Default for SSR
-  }
-
-  const [gridColumns, setGridColumns] = useState(getGridColumns())
-
-  // Update grid columns on window resize
-  useEffect(() => {
-    const handleResize = () => {
-      setGridColumns(getGridColumns())
-    }
-
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [])
-
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        {/* Top row - Title */}
-        <div className="flex justify-center items-center h-14 border-b border-gray-100 py-3">
-          <h1 className="font-sans text-2xl font-medium tracking-wide">Inflammatory Disease Companion</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-black floating-orbs">
+      {/* Header with glass morphism */}
+      <header className="sticky top-0 z-50 glass-card border-b border-white/10">
+        {/* Top row - Title with glow effect */}
+        <div className="flex justify-center items-center h-16 border-b border-white/5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 glow-primary">
+              <Sparkles className="h-6 w-6 text-purple-400" />
+            </div>
+            <h1 className="font-sans text-2xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent tracking-wide">
+              Inflammatory Disease Companion
+            </h1>
+          </div>
         </div>
 
-        {/* Bottom row - Navigation */}
-        <div className="flex h-14 items-center justify-center px-4">
-          {/* Center container for navigation */}
-          <div className="flex items-center justify-center max-w-4xl w-full">
-            {/* Navigation items */}
+        {/* Bottom row - Navigation with glass buttons */}
+        <div className="flex h-16 items-center justify-center px-4">
+          <div className="flex items-center justify-center max-w-6xl w-full">
             <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
               {navItems.map((item) => (
                 <Button
@@ -537,7 +510,12 @@ export default function SymptomTracker() {
                   variant={mainView === item.id ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setMainView(item.id as any)}
-                  className="hidden md:flex whitespace-nowrap"
+                  className={cn(
+                    "hidden md:flex whitespace-nowrap glass-button transition-all duration-300",
+                    mainView === item.id
+                      ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg glow-primary`
+                      : "hover:bg-white/10",
+                  )}
                 >
                   {item.icon}
                   <span className="ml-2">{item.label}</span>
@@ -545,33 +523,33 @@ export default function SymptomTracker() {
               ))}
             </div>
 
-            {/* Mobile menu */}
+            {/* Mobile menu with glass effect */}
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden ml-auto">
+                <Button variant="ghost" size="icon" className="md:hidden ml-auto glass-button">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left">
+              <SheetContent side="left" className="glass-card border-white/20">
                 <div className="py-4">
-                  <h2 className="text-lg font-semibold mb-4">Inflammatory Disease Companion</h2>
+                  <h2 className="text-lg font-semibold mb-4 bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                    Health Companion
+                  </h2>
                   <nav className="space-y-2">
                     {navItems.map((item) => (
                       <Button
                         key={item.id}
                         variant={mainView === item.id ? "default" : "ghost"}
-                        className="w-full justify-start"
-                        onClick={() => {
-                          setMainView(item.id as any)
-                          // Close the sheet when an item is selected
-                          document.querySelector("[data-radix-collection-item]")?.click()
-                        }}
+                        className={cn(
+                          "w-full justify-start glass-button",
+                          mainView === item.id && `bg-gradient-to-r ${item.gradient} text-white`,
+                        )}
+                        onClick={() => setMainView(item.id as any)}
                       >
                         {item.icon}
                         <span className="ml-2">{item.label}</span>
                       </Button>
                     ))}
-                    <div className="pt-4 border-t mt-4"></div>
                   </nav>
                 </div>
               </SheetContent>
@@ -580,87 +558,111 @@ export default function SymptomTracker() {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto p-4">
-        <div className="mx-auto max-w-6xl space-y-4">
+      {/* Main content with enhanced glass cards */}
+      <main className="flex-1 p-4">
+        <div className="mx-auto max-w-7xl space-y-6">
           {mainView === "symptoms" && (
             <>
-              <Card className="overflow-hidden border-none shadow-sm">
+              <Card className="glass-card border-white/20 overflow-hidden">
                 <CardContent className="p-0">
                   <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="flex items-center justify-between border-b px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-medium">{format(currentDate, "MMMM yyyy")}</h2>
-                        <div className="flex">
-                          <Button variant="ghost" size="icon" onClick={goToPreviousMonth} className="h-8 w-8">
+                    <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20">
+                            <BarChart2 className="h-5 w-5 text-purple-400" />
+                          </div>
+                          <h2 className="text-xl font-semibold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                            {format(currentDate, "MMMM yyyy")}
+                          </h2>
+                        </div>
+                        <div className="flex glass-button rounded-lg p-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={goToPreviousMonth}
+                            className="h-8 w-8 hover:bg-white/10"
+                          >
                             <ChevronLeft className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={goToNextMonth} className="h-8 w-8">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={goToNextMonth}
+                            className="h-8 w-8 hover:bg-white/10"
+                          >
                             <ChevronRight className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-2">
-                          <TabsList>
-                            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-                            <TabsTrigger value="chart">Chart</TabsTrigger>
-                          </TabsList>
+                      <div className="flex items-center gap-3">
+                        <TabsList className="glass-button">
+                          <TabsTrigger value="calendar" className="data-[state=active]:bg-white/20">
+                            Calendar
+                          </TabsTrigger>
+                          <TabsTrigger value="chart" className="data-[state=active]:bg-white/20">
+                            Chart
+                          </TabsTrigger>
+                        </TabsList>
 
-                          <Button
-                            variant={selectionMode ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => {
-                              setSelectionMode(!selectionMode)
-                              if (!selectionMode) {
-                                toast({
-                                  title: "Multi-day Selection Enabled",
-                                  description: "Click and drag to select multiple days for bulk symptom entry.",
-                                })
-                              } else {
-                                setSelectionStart(null)
-                                setSelectedDays([])
-                              }
-                            }}
-                            className="h-8"
-                          >
-                            {selectionMode ? "Cancel Selection" : "Select Multiple Days"}
-                          </Button>
+                        <Button
+                          variant={selectionMode ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setSelectionMode(!selectionMode)
+                            if (!selectionMode) {
+                              toast({
+                                title: "Multi-day Selection Enabled",
+                                description: "Click and drag to select multiple days for bulk symptom entry.",
+                              })
+                            } else {
+                              setSelectionStart(null)
+                              setSelectedDays([])
+                            }
+                          }}
+                          className={cn(
+                            "glass-button",
+                            selectionMode && "bg-gradient-to-r from-purple-500 to-pink-500 text-white glow-primary",
+                          )}
+                        >
+                          {selectionMode ? "Cancel Selection" : "Multi-Select"}
+                        </Button>
 
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <Settings className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Symptom Settings</DialogTitle>
-                              </DialogHeader>
-                              <SymptomSettings symptomTypes={symptomTypes} onUpdate={updateSymptomTypes} />
-                            </DialogContent>
-                          </Dialog>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="glass-button">
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="glass-card border-white/20">
+                            <DialogHeader>
+                              <DialogTitle className="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                                Symptom Settings
+                              </DialogTitle>
+                            </DialogHeader>
+                            <SymptomSettings symptomTypes={symptomTypes} onUpdate={updateSymptomTypes} />
+                          </DialogContent>
+                        </Dialog>
 
-                          <Button variant="ghost" size="icon" onClick={exportAsCSV} className="h-8 w-8">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Button variant="ghost" size="icon" onClick={exportAsCSV} className="glass-button">
+                          <Download className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
 
-                    <TabsContent value="calendar" className="p-4">
-                      <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                    <TabsContent value="calendar" className="p-6">
+                      <div className="grid grid-cols-7 gap-2 text-center mb-4">
                         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                          <div key={day} className="text-xs font-medium text-muted-foreground py-1">
+                          <div key={day} className="text-sm font-medium text-white/70 py-2">
                             {day}
                           </div>
                         ))}
                       </div>
 
-                      <div className="grid grid-cols-7 gap-1">
+                      <div className="grid grid-cols-7 gap-2">
                         {Array.from({ length: monthStart.getDay() }).map((_, index) => (
-                          <div key={`empty-start-${index}`} className="h-20 p-1 rounded-md bg-muted/10"></div>
+                          <div key={`empty-start-${index}`} className="h-24 p-2 rounded-xl bg-white/5"></div>
                         ))}
 
                         {days.map((day) => {
@@ -668,47 +670,50 @@ export default function SymptomTracker() {
                           const medsForDay = getMedicationsForDate(day)
                           const hasSymptom = !!symptom
                           const hasMeds = medsForDay.length > 0
-                          const severityClass = hasSymptom ? getSeverityColor(symptom.severity) : getSeverityColor(0) // Use 0 for no symptoms
+                          const severityClass = hasSymptom ? getSeverityColor(symptom.severity) : getSeverityColor(0)
                           const isSelected = selectedDays.some((d) => isSameDay(d, day))
+                          const isToday = isSameDay(day, new Date())
 
                           return (
                             <div
                               key={day.toString()}
                               className={cn(
-                                "h-20 p-1 border rounded-md relative transition-colors",
+                                "h-24 p-2 border rounded-xl relative transition-all duration-300 backdrop-blur-sm",
                                 severityClass,
-                                isSelected && "ring-2 ring-primary ring-offset-1",
-                                selectionMode && "cursor-pointer",
+                                isSelected && "ring-2 ring-purple-400 ring-offset-2 ring-offset-transparent",
+                                selectionMode && "cursor-pointer hover:scale-105",
+                                isToday && "ring-2 ring-white/50",
                               )}
                               onMouseDown={() => selectionMode && handleDaySelect(day)}
                               onMouseOver={() => selectionMode && selectionStart && handleDaySelect(day)}
                               onMouseUp={() => selectionMode && handleSelectionComplete()}
                             >
-                              <div className="flex justify-between items-start">
+                              <div className="flex justify-between items-start h-full">
                                 <span
                                   className={cn(
-                                    "text-xs font-medium h-6 w-6 flex items-center justify-center rounded-full",
-                                    isSameDay(day, new Date()) && "bg-[#FF4000]/30 text-gray-800",
+                                    "text-sm font-medium h-6 w-6 flex items-center justify-center rounded-full",
+                                    isToday && "bg-white/20 text-white font-bold",
                                   )}
                                 >
                                   {format(day, "d")}
                                 </span>
 
-                                <div className="flex gap-1">
-                                  {hasMeds && <Pill className="h-3 w-3 text-[#FF4000]" />}
+                                <div className="flex flex-col gap-1">
+                                  {hasMeds && (
+                                    <div className="p-1 rounded-full bg-blue-500/30">
+                                      <Pill className="h-3 w-3 text-blue-300" />
+                                    </div>
+                                  )}
 
                                   {!selectionMode && (
                                     <>
                                       {hasSymptom ? (
-                                        // Delete button (without DialogTrigger)
                                         <Button
                                           variant="ghost"
                                           size="icon"
-                                          className="h-5 w-5 rounded-full hover:bg-red-100"
+                                          className="h-6 w-6 rounded-full hover:bg-red-500/20 p-1"
                                           onClick={() => {
-                                            // Confirm before deleting
                                             if (window.confirm(`Delete symptoms for ${format(day, "MMMM d, yyyy")}?`)) {
-                                              // Remove the symptom entry
                                               setSymptoms(symptoms.filter((s) => !isSameDay(s.date, day)))
                                               toast({
                                                 title: "Symptoms Deleted",
@@ -717,24 +722,25 @@ export default function SymptomTracker() {
                                             }
                                           }}
                                         >
-                                          <X className="h-3 w-3 text-red-500" />
+                                          <X className="h-3 w-3 text-red-400" />
                                         </Button>
                                       ) : (
-                                        // Add button (with DialogTrigger)
                                         <Dialog>
                                           <DialogTrigger asChild>
                                             <Button
                                               variant="ghost"
                                               size="icon"
-                                              className="h-5 w-5 rounded-full hover:bg-[#FF4000]/10"
+                                              className="h-6 w-6 rounded-full hover:bg-purple-500/20 p-1"
                                               onClick={() => setSelectedDate(day)}
                                             >
-                                              <Plus className="h-3 w-3" />
+                                              <Plus className="h-3 w-3 text-purple-400" />
                                             </Button>
                                           </DialogTrigger>
-                                          <DialogContent>
+                                          <DialogContent className="glass-card border-white/20">
                                             <DialogHeader>
-                                              <DialogTitle>Log Symptoms for {format(day, "MMMM d, yyyy")}</DialogTitle>
+                                              <DialogTitle className="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                                                Log Symptoms for {format(day, "MMMM d, yyyy")}
+                                              </DialogTitle>
                                             </DialogHeader>
                                             <SymptomForm
                                               date={day}
@@ -756,101 +762,59 @@ export default function SymptomTracker() {
                                   <PopoverTrigger asChild>
                                     <Button
                                       variant="ghost"
-                                      className="absolute bottom-1 right-1 h-5 px-2 text-xs rounded-sm hover:bg-[#FF4000]/10"
+                                      className="absolute bottom-1 right-1 h-6 px-2 text-xs rounded-md hover:bg-white/10"
                                     >
                                       View
                                     </Button>
                                   </PopoverTrigger>
-                                  <PopoverContent className="w-80 p-3">
-                                    <div className="space-y-2">
-                                      <h3 className="font-medium text-sm">
+                                  <PopoverContent className="w-80 p-4 glass-card border-white/20">
+                                    <div className="space-y-3">
+                                      <h3 className="font-medium text-sm bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
                                         Symptoms on {format(symptom.date, "MMM d, yyyy")}
                                       </h3>
-                                      <div className="text-xs">
-                                        <div className="font-medium">Severity:</div>
-                                        <div className="ml-2">
-                                          {symptom.severity === 1 && "Mild"}
-                                          {symptom.severity === 2 && "Moderate"}
-                                          {symptom.severity === 3 && "Severe"}
-                                        </div>
-                                      </div>
-                                      <div className="text-xs">
-                                        <div className="font-medium">Symptoms:</div>
-                                        <div className="ml-2">
-                                          {Object.entries(symptom.symptoms)
-                                            .filter(([_, present]) => present)
-                                            .map(([name]) => name)
-                                            .join(", ") || "None recorded"}
-                                        </div>
-                                      </div>
-                                      {symptom.notes && (
-                                        <div className="text-xs">
-                                          <div className="font-medium">Notes:</div>
-                                          <div className="ml-2">{symptom.notes}</div>
-                                        </div>
-                                      )}
-
-                                      {symptom.weather && (
-                                        <div className="text-xs">
-                                          <div className="font-medium">Brisbane Weather:</div>
-                                          <div className="ml-2 flex items-center">
-                                            {symptom.weather.icon && (
-                                              <img
-                                                src={`https://openweathermap.org/img/wn/${symptom.weather.icon}.png`}
-                                                alt="Weather icon"
-                                                className="w-6 h-6 mr-1"
-                                              />
-                                            )}
-                                            <span>
-                                              {symptom.weather.temperature && `${symptom.weather.temperature}°C, `}
-                                              {symptom.weather.description}
-                                            </span>
+                                      <div className="text-xs space-y-2">
+                                        <div>
+                                          <div className="font-medium text-white/80">Severity:</div>
+                                          <div className="ml-2 text-white/60">
+                                            {symptom.severity === 1 && "Mild"}
+                                            {symptom.severity === 2 && "Moderate"}
+                                            {symptom.severity === 3 && "Severe"}
                                           </div>
                                         </div>
-                                      )}
-
-                                      {hasMeds && (
-                                        <div className="text-xs">
-                                          <div className="font-medium">Medications:</div>
-                                          <ul className="ml-2 list-disc list-inside">
-                                            {medsForDay.map((med) => (
-                                              <li key={med.id}>
-                                                {med.name} ({med.dosage})
-                                              </li>
-                                            ))}
-                                          </ul>
+                                        <div>
+                                          <div className="font-medium text-white/80">Symptoms:</div>
+                                          <div className="ml-2 text-white/60">
+                                            {Object.entries(symptom.symptoms)
+                                              .filter(([_, present]) => present)
+                                              .map(([name]) => name)
+                                              .join(", ") || "None recorded"}
+                                          </div>
                                         </div>
-                                      )}
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
-                              )}
-
-                              {!hasSymptom && hasMeds && (
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      className="absolute bottom-1 right-1 h-5 px-2 text-xs rounded-sm hover:bg-[#FF4000]/10"
-                                    >
-                                      Meds
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-80 p-3">
-                                    <div className="space-y-2">
-                                      <h3 className="font-medium text-sm">
-                                        Medications for {format(day, "MMM d, yyyy")}
-                                      </h3>
-                                      <ul className="text-xs list-disc list-inside">
-                                        {medsForDay.map((med) => (
-                                          <li key={med.id}>
-                                            {med.name} ({med.dosage})
-                                            <div className="text-xs text-muted-foreground ml-5">
-                                              {med.times.join(", ")}
+                                        {symptom.notes && (
+                                          <div>
+                                            <div className="font-medium text-white/80">Notes:</div>
+                                            <div className="ml-2 text-white/60">{symptom.notes}</div>
+                                          </div>
+                                        )}
+                                        {symptom.weather && (
+                                          <div>
+                                            <div className="font-medium text-white/80">Weather:</div>
+                                            <div className="ml-2 flex items-center text-white/60">
+                                              {symptom.weather.icon && (
+                                                <img
+                                                  src={`https://openweathermap.org/img/wn/${symptom.weather.icon}.png`}
+                                                  alt="Weather icon"
+                                                  className="w-6 h-6 mr-1"
+                                                />
+                                              )}
+                                              <span>
+                                                {symptom.weather.temperature && `${symptom.weather.temperature}°C, `}
+                                                {symptom.weather.description}
+                                              </span>
                                             </div>
-                                          </li>
-                                        ))}
-                                      </ul>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   </PopoverContent>
                                 </Popover>
@@ -860,89 +824,86 @@ export default function SymptomTracker() {
                         })}
 
                         {Array.from({ length: 6 - monthEnd.getDay() }).map((_, index) => (
-                          <div key={`empty-end-${index}`} className="h-20 p-1 rounded-md bg-muted/10"></div>
+                          <div key={`empty-end-${index}`} className="h-24 p-2 rounded-xl bg-white/5"></div>
                         ))}
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="chart" className="p-4">
+                    <TabsContent value="chart" className="p-6">
                       <SymptomChart symptoms={currentMonthSymptoms} symptomTypes={symptomTypes} month={currentDate} />
                     </TabsContent>
                   </Tabs>
                 </CardContent>
               </Card>
 
-              <Card className="border-none shadow-sm">
-                <CardContent className="p-4">
-                  <h2 className="text-lg font-medium mb-4">Monthly Summary</h2>
-                  <div className="flex flex-wrap items-center gap-4">
+              <Card className="glass-card border-white/20">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                      Monthly Summary
+                    </h2>
+                    <Button
+                      onClick={exportAsCSV}
+                      className="glass-button bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Data
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 mb-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#FF4000]/20"></div>
-                      <span className="text-sm">Mild</span>
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-r from-yellow-500 to-yellow-600"></div>
+                      <span className="text-sm text-white/80">Mild</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#FF4000]/30"></div>
-                      <span className="text-sm">Moderate</span>
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-r from-orange-500 to-orange-600"></div>
+                      <span className="text-sm text-white/80">Moderate</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-[#FF4000]/50"></div>
-                      <span className="text-sm">Severe</span>
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-r from-red-500 to-red-600"></div>
+                      <span className="text-sm text-white/80">Severe</span>
                     </div>
                   </div>
 
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {currentMonthSymptoms.length === 0
-                        ? "No symptoms recorded for this month. Click the + button on any day to log symptoms."
-                        : `You've recorded symptoms on ${currentMonthSymptoms.length} days this month.`}
-                    </p>
-                  </div>
+                  <p className="text-sm text-white/60 mb-4">
+                    {currentMonthSymptoms.length === 0
+                      ? "No symptoms recorded for this month. Click the + button on any day to log symptoms."
+                      : `You've recorded symptoms on ${currentMonthSymptoms.length} days this month.`}
+                  </p>
 
                   {currentMonthSymptoms.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                      <div>
-                        <h3 className="text-sm font-medium mb-2">Most Common Symptoms</h3>
-                        <ul className="text-sm space-y-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                      <div className="glass p-4 rounded-lg">
+                        <h3 className="text-sm font-medium mb-3 text-white/80">Most Common Symptoms</h3>
+                        <ul className="text-sm space-y-2">
                           {getMostCommonSymptoms(currentMonthSymptoms, symptomTypes).map((item, index) => (
-                            <li key={index} className="flex justify-between">
+                            <li key={index} className="flex justify-between text-white/60">
                               <span>{item.name}</span>
-                              <span className="text-muted-foreground">{item.count} days</span>
+                              <span>{item.count} days</span>
                             </li>
                           ))}
                         </ul>
                       </div>
-                      <div>
-                        <h3 className="text-sm font-medium mb-2">Severity Distribution</h3>
-                        <ul className="text-sm space-y-1">
-                          <li className="flex justify-between">
+                      <div className="glass p-4 rounded-lg">
+                        <h3 className="text-sm font-medium mb-3 text-white/80">Severity Distribution</h3>
+                        <ul className="text-sm space-y-2">
+                          <li className="flex justify-between text-white/60">
                             <span>Mild</span>
-                            <span className="text-muted-foreground">
-                              {currentMonthSymptoms.filter((s) => s.severity === 1).length} days
-                            </span>
+                            <span>{currentMonthSymptoms.filter((s) => s.severity === 1).length} days</span>
                           </li>
-                          <li className="flex justify-between">
+                          <li className="flex justify-between text-white/60">
                             <span>Moderate</span>
-                            <span className="text-muted-foreground">
-                              {currentMonthSymptoms.filter((s) => s.severity === 2).length} days
-                            </span>
+                            <span>{currentMonthSymptoms.filter((s) => s.severity === 2).length} days</span>
                           </li>
-                          <li className="flex justify-between">
+                          <li className="flex justify-between text-white/60">
                             <span>Severe</span>
-                            <span className="text-muted-foreground">
-                              {currentMonthSymptoms.filter((s) => s.severity === 3).length} days
-                            </span>
+                            <span>{currentMonthSymptoms.filter((s) => s.severity === 3).length} days</span>
                           </li>
                         </ul>
                       </div>
                     </div>
                   )}
-
-                  <div className="flex justify-end mt-4">
-                    <Button variant="outline" onClick={exportAsCSV} className="flex items-center gap-2">
-                      <Download className="h-4 w-4" />
-                      Export Data
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
             </>
@@ -979,12 +940,14 @@ export default function SymptomTracker() {
           )}
         </div>
 
-        {/* Bulk Entry Dialog */}
+        {/* Bulk Entry Dialog with glass styling */}
         <Dialog open={bulkEntryOpen} onOpenChange={setBulkEntryOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md glass-card border-white/20">
             <DialogHeader>
-              <DialogTitle>Log Symptoms for Multiple Days</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                Log Symptoms for Multiple Days
+              </DialogTitle>
+              <DialogDescription className="text-white/60">
                 Adding symptoms for {selectedDays.length} days:{" "}
                 {selectedDays.length > 0 &&
                   `${format(selectedDays[0], "MMM d")} - ${format(selectedDays[selectedDays.length - 1], "MMM d")}`}
@@ -1008,7 +971,25 @@ export default function SymptomTracker() {
   )
 }
 
-// Bulk Symptom Form Component
+// Helper functions and components remain the same but with updated styling
+function getMostCommonSymptoms(entries: SymptomEntry[], symptomTypes: string[]) {
+  const counts: Record<string, number> = {}
+
+  entries.forEach((entry) => {
+    Object.entries(entry.symptoms).forEach(([name, present]) => {
+      if (present) {
+        counts[name] = (counts[name] || 0) + 1
+      }
+    })
+  })
+
+  return Object.entries(counts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+}
+
+// Bulk Symptom Form Component with glass styling
 function BulkSymptomForm({
   symptomTypes,
   onSubmit,
@@ -1021,7 +1002,6 @@ function BulkSymptomForm({
   const [severity, setSeverity] = useState<number>(1)
   const [notes, setNotes] = useState<string>("")
 
-  // Initialize symptoms object with all types set to false by default
   const initialSymptoms: Record<string, boolean> = {}
   symptomTypes.forEach((type) => {
     initialSymptoms[type] = false
@@ -1043,25 +1023,31 @@ function BulkSymptomForm({
   return (
     <div className="space-y-4 pt-2">
       <div className="space-y-2">
-        <Label>Severity</Label>
+        <Label className="text-white/80">Severity</Label>
         <RadioGroup value={severity.toString()} onValueChange={(value) => setSeverity(Number.parseInt(value))}>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="1" id="bulk-severity-mild" />
-            <Label htmlFor="bulk-severity-mild">Mild</Label>
+            <Label htmlFor="bulk-severity-mild" className="text-white/70">
+              Mild
+            </Label>
           </div>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="2" id="bulk-severity-moderate" />
-            <Label htmlFor="bulk-severity-moderate">Moderate</Label>
+            <Label htmlFor="bulk-severity-moderate" className="text-white/70">
+              Moderate
+            </Label>
           </div>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="3" id="bulk-severity-severe" />
-            <Label htmlFor="bulk-severity-severe">Severe</Label>
+            <Label htmlFor="bulk-severity-severe" className="text-white/70">
+              Severe
+            </Label>
           </div>
         </RadioGroup>
       </div>
 
       <div className="space-y-2">
-        <Label>Symptoms</Label>
+        <Label className="text-white/80">Symptoms</Label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-2">
           {symptomTypes.map((symptom) => (
             <div key={symptom} className="flex items-center space-x-2">
@@ -1070,7 +1056,7 @@ function BulkSymptomForm({
                 checked={selectedSymptoms[symptom]}
                 onCheckedChange={() => toggleSymptom(symptom)}
               />
-              <Label htmlFor={`bulk-symptom-${symptom}`} className="text-sm">
+              <Label htmlFor={`bulk-symptom-${symptom}`} className="text-sm text-white/70">
                 {symptom}
               </Label>
             </div>
@@ -1079,47 +1065,31 @@ function BulkSymptomForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="bulk-notes">Notes</Label>
+        <Label htmlFor="bulk-notes" className="text-white/80">
+          Notes
+        </Label>
         <Textarea
           id="bulk-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Add any additional notes about these symptoms..."
-          className="min-h-[100px]"
+          className="min-h-[100px] glass border-white/20 text-white placeholder:text-white/40"
         />
       </div>
 
       <div className="flex justify-between mt-4">
-        <Button variant="outline" onClick={onCancel} type="button">
+        <Button variant="outline" onClick={onCancel} type="button" className="glass-button">
           Cancel
         </Button>
-        <Button onClick={handleSubmit}>Save Symptoms for {selectedSymptoms.length} Days</Button>
+        <Button onClick={handleSubmit} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+          Save Symptoms
+        </Button>
       </div>
     </div>
   )
 }
 
-// Helper function to get most common symptoms
-function getMostCommonSymptoms(entries: SymptomEntry[], symptomTypes: string[]) {
-  const counts: Record<string, number> = {}
-
-  // Count occurrences of each symptom
-  entries.forEach((entry) => {
-    Object.entries(entry.symptoms).forEach(([name, present]) => {
-      if (present) {
-        counts[name] = (counts[name] || 0) + 1
-      }
-    })
-  })
-
-  // Convert to array and sort by count
-  return Object.entries(counts)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5) // Top 5 symptoms
-}
-
-// Symptom Form Component
+// Symptom Form Component with glass styling
 function SymptomForm({
   date,
   existingEntry,
@@ -1136,7 +1106,6 @@ function SymptomForm({
   const [severity, setSeverity] = useState<number>(existingEntry?.severity || 1)
   const [notes, setNotes] = useState<string>(existingEntry?.notes || "")
 
-  // Initialize symptoms object with all types set to false by default
   const initialSymptoms: Record<string, boolean> = {}
   symptomTypes.forEach((type) => {
     initialSymptoms[type] = existingEntry?.symptoms[type] || false
@@ -1153,7 +1122,6 @@ function SymptomForm({
 
   const handleSubmit = async () => {
     try {
-      // Use the server action to fetch weather data
       const weather = await fetchCurrentWeather()
 
       const newEntry: SymptomEntry = {
@@ -1175,7 +1143,7 @@ function SymptomForm({
         severity,
         notes,
         symptoms: selectedSymptoms,
-        weather: null, // Weather data failed to load
+        weather: null,
       }
 
       onSubmit(newEntry)
@@ -1185,25 +1153,31 @@ function SymptomForm({
   return (
     <div className="space-y-4 pt-2">
       <div className="space-y-2">
-        <Label>Severity</Label>
+        <Label className="text-white/80">Severity</Label>
         <RadioGroup value={severity.toString()} onValueChange={(value) => setSeverity(Number.parseInt(value))}>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="1" id="severity-mild" />
-            <Label htmlFor="severity-mild">Mild</Label>
+            <Label htmlFor="severity-mild" className="text-white/70">
+              Mild
+            </Label>
           </div>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="2" id="severity-moderate" />
-            <Label htmlFor="severity-moderate">Moderate</Label>
+            <Label htmlFor="severity-moderate" className="text-white/70">
+              Moderate
+            </Label>
           </div>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="3" id="severity-severe" />
-            <Label htmlFor="severity-severe">Severe</Label>
+            <Label htmlFor="severity-severe" className="text-white/70">
+              Severe
+            </Label>
           </div>
         </RadioGroup>
       </div>
 
       <div className="space-y-2">
-        <Label>Symptoms</Label>
+        <Label className="text-white/80">Symptoms</Label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-2">
           {symptomTypes.map((symptom) => (
             <div key={symptom} className="flex items-center space-x-2">
@@ -1212,7 +1186,7 @@ function SymptomForm({
                 checked={selectedSymptoms[symptom]}
                 onCheckedChange={() => toggleSymptom(symptom)}
               />
-              <Label htmlFor={`symptom-${symptom}`} className="text-sm">
+              <Label htmlFor={`symptom-${symptom}`} className="text-sm text-white/70">
                 {symptom}
               </Label>
             </div>
@@ -1221,21 +1195,25 @@ function SymptomForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="notes">Notes</Label>
+        <Label htmlFor="notes" className="text-white/80">
+          Notes
+        </Label>
         <Textarea
           id="notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Add any additional notes about these symptoms..."
-          className="min-h-[100px]"
+          className="min-h-[100px] glass border-white/20 text-white placeholder:text-white/40"
         />
       </div>
 
       <div className="flex justify-between mt-4">
-        <Button variant="outline" onClick={onCancel} type="button">
+        <Button variant="outline" onClick={onCancel} type="button" className="glass-button">
           Cancel
         </Button>
-        <Button onClick={handleSubmit}>Save Symptoms</Button>
+        <Button onClick={handleSubmit} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+          Save Symptoms
+        </Button>
       </div>
     </div>
   )
