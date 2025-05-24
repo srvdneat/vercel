@@ -10,8 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { generateText } from "ai"
-import { createGroq } from "@ai-sdk/groq"
+import { generateAIInsights } from "@/actions/ai-actions"
 import type { SymptomEntry, MedicationEntry } from "@/components/symptom-tracker"
 
 interface AIInsightsProps {
@@ -76,51 +75,17 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
         endDate: m.endDate ? m.endDate.toISOString().split("T")[0] : "ongoing",
       }))
 
-      // Generate the prompt for the AI
-      const prompt = `
-        You are a medical AI assistant specializing in inflammatory conditions. 
-        Analyze the following patient data and provide 5 personalized insights about their condition.
-        
-        SYMPTOM DATA (last 30 entries):
-        ${JSON.stringify(symptomSummary, null, 2)}
-        
-        MEDICATION DATA:
-        ${JSON.stringify(medicationSummary, null, 2)}
-        
-        TRACKED SYMPTOM TYPES:
-        ${JSON.stringify(symptomTypes, null, 2)}
-        
-        Provide 5 specific, actionable insights based on this data. Each insight should:
-        1. Identify a pattern, correlation, or observation
-        2. Explain why it matters for inflammatory conditions
-        3. Suggest a specific action the patient could take
-        
-        For each insight, also provide a confidence score from 1-100 indicating how confident you are in this insight based on the available data.
-        
-        Format your response as a JSON array with objects containing "insight" and "confidence" properties.
-        Example: [{"insight": "Your symptoms tend to worsen on days with high humidity...", "confidence": 85}, {...}]
-        
-        Be specific, evidence-based, and compassionate.
-        Do not include generic advice that isn't based on the patient's specific data.
-        Focus on correlations between symptoms, medications, weather, and timing.
-      `
+      // Call server action
+      const result = await generateAIInsights(symptomSummary, medicationSummary, symptomTypes)
 
-      // Initialize Groq with API key
-      const groq = createGroq({
-        apiKey: process.env.GROQ_API_KEY,
-      })
-
-      // Call Groq API
-      const { text } = await generateText({
-        model: groq("llama3-70b-8192"),
-        prompt,
-        system:
-          "You are a medical AI assistant specializing in inflammatory conditions. Provide evidence-based insights for patients tracking their symptoms.",
-      })
+      if (!result.success) {
+        setError(result.error || "Failed to generate insights")
+        return
+      }
 
       try {
         // Try to parse the response as JSON
-        const parsedResponse = JSON.parse(text)
+        const parsedResponse = JSON.parse(result.data)
         const insightList = parsedResponse.map((item: any) => item.insight)
         const confidenceList = parsedResponse.map((item: any) => item.confidence)
 
@@ -130,7 +95,7 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
       } catch (parseError) {
         // If JSON parsing fails, fall back to text splitting
         console.error("Failed to parse AI response as JSON:", parseError)
-        const insightList = text
+        const insightList = result.data
           .split("\n\n")
           .filter((insight) => insight.trim().length > 0)
           .map((insight) => insight.trim())
