@@ -34,7 +34,7 @@ export async function generateAIInsights(symptomData: any[], medicationData: any
       Focus on correlations between symptoms, medications, weather, and timing.
     `
 
-    // Initialize Groq with API key
+    // Initialize Groq with API key from server environment
     const groq = createGroq({
       apiKey: process.env.GROQ_API_KEY,
     })
@@ -108,7 +108,7 @@ export async function generatePatternVisualizations(
         Ensure the data is properly formatted for direct use in charts.
       `
 
-    // Initialize Groq with API key
+    // Initialize Groq with API key from server environment
     const groq = createGroq({
       apiKey: process.env.GROQ_API_KEY,
     })

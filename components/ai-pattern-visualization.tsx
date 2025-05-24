@@ -129,7 +129,7 @@ export default function AIPatternVisualization({ symptoms, medications, symptomT
           endDate: m.endDate ? m.endDate.toISOString().split("T")[0] : "ongoing",
         }))
 
-      // Call server action
+      // Call the server action
       const result = await generatePatternVisualizations(symptomData, medicationData, symptomTypes, timeRange)
 
       if (!result.success) {

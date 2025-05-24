@@ -75,7 +75,7 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
         endDate: m.endDate ? m.endDate.toISOString().split("T")[0] : "ongoing",
       }))
 
-      // Call server action
+      // Call the server action
       const result = await generateAIInsights(symptomSummary, medicationSummary, symptomTypes)
 
       if (!result.success) {
