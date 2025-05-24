@@ -138,65 +138,26 @@ export default function AIPatternVisualization({ symptoms, medications, symptomT
       }
 
       try {
-        // Try to parse the response as JSON
-        let jsonText = result.data.trim()
+        // Parse the cleaned JSON response
+        const parsedData = JSON.parse(result.data)
 
-        // Check if the response starts with text instead of JSON
-        const jsonStartIndex = jsonText.indexOf("[")
-        if (jsonStartIndex > 0) {
-          // Extract only the JSON part
-          jsonText = jsonText.substring(jsonStartIndex)
+        if (Array.isArray(parsedData) && parsedData.length > 0) {
+          setPatternData(parsedData)
+
+          // Set active pattern to the one with highest confidence
+          const highestConfidencePattern = parsedData.reduce(
+            (prev: PatternData, current: PatternData) => (current.confidence > prev.confidence ? current : prev),
+            parsedData[0],
+          )
+          setActivePattern(highestConfidencePattern.type)
+        } else {
+          throw new Error("Invalid response format")
         }
-
-        // Find where the JSON array ends
-        const jsonEndIndex = jsonText.lastIndexOf("]")
-        if (jsonEndIndex > 0) {
-          jsonText = jsonText.substring(0, jsonEndIndex + 1)
-        }
-
-        // Parse the cleaned JSON
-        const parsedData = JSON.parse(jsonText)
-        setPatternData(parsedData)
-
-        // Set active pattern to the one with highest confidence
-        const highestConfidencePattern = parsedData.reduce(
-          (prev: PatternData, current: PatternData) => (current.confidence > prev.confidence ? current : prev),
-          parsedData[0],
-        )
-        setActivePattern(highestConfidencePattern.type)
       } catch (parseError) {
         console.error("Error parsing AI response:", parseError, "Raw response:", result.data)
 
         // Create fallback visualization data if parsing fails
-        const fallbackData = [
-          {
-            type: "weekly",
-            title: "Weekly Symptom Pattern",
-            description: "Shows how symptoms vary by day of the week",
-            chartType: "bar",
-            data: symptomData.reduce((acc: any, curr) => {
-              const day = format(new Date(curr.date), "EEEE")
-              if (!acc.find((item: any) => item.day === day)) {
-                acc.push({
-                  day,
-                  severity: curr.severity,
-                  count: 1,
-                })
-              } else {
-                const item = acc.find((item: any) => item.day === day)
-                item.severity = (item.severity * item.count + curr.severity) / (item.count + 1)
-                item.count += 1
-              }
-              return acc
-            }, []),
-            insights: [
-              "This visualization shows your symptom patterns by day of week",
-              "The data is based on your recorded symptoms",
-            ],
-            confidence: 60,
-          },
-        ]
-
+        const fallbackData = generateFallbackVisualizations(symptomData)
         setPatternData(fallbackData)
         setActivePattern("weekly")
         setError("AI response could not be processed correctly. Showing simplified visualization instead.")
@@ -209,8 +170,69 @@ export default function AIPatternVisualization({ symptoms, medications, symptomT
     }
   }
 
-  // Get the currently active pattern data
-  const activePatternData = patternData.find((p) => p.type === activePattern)
+  // Generate fallback visualizations when AI parsing fails
+  const generateFallbackVisualizations = (symptomData: any[]): PatternData[] => {
+    // Weekly pattern
+    const weeklyData = symptomData.reduce((acc: any, curr) => {
+      const day = curr.day
+      if (!acc.find((item: any) => item.day === day)) {
+        acc.push({
+          day,
+          severity: curr.severity,
+          count: 1,
+        })
+      } else {
+        const item = acc.find((item: any) => item.day === day)
+        item.severity = (item.severity * item.count + curr.severity) / (item.count + 1)
+        item.count += 1
+      }
+      return acc
+    }, [])
+
+    // Monthly pattern
+    const monthlyData = symptomData.reduce((acc: any, curr) => {
+      const month = curr.month
+      if (!acc.find((item: any) => item.month === month)) {
+        acc.push({
+          month,
+          severity: curr.severity,
+          count: 1,
+        })
+      } else {
+        const item = acc.find((item: any) => item.month === month)
+        item.severity = (item.severity * item.count + curr.severity) / (item.count + 1)
+        item.count += 1
+      }
+      return acc
+    }, [])
+
+    return [
+      {
+        type: "weekly",
+        title: "Weekly Symptom Pattern",
+        description: "Shows how symptoms vary by day of the week",
+        chartType: "bar",
+        data: weeklyData,
+        insights: [
+          "This visualization shows your symptom patterns by day of week",
+          "Look for patterns that might indicate lifestyle or stress triggers",
+        ],
+        confidence: 60,
+      },
+      {
+        type: "monthly",
+        title: "Monthly Trends",
+        description: "Shows symptom trends over different months",
+        chartType: "line",
+        data: monthlyData,
+        insights: [
+          "Monthly patterns can reveal seasonal influences on your condition",
+          "Weather and activity changes throughout the year may affect symptoms",
+        ],
+        confidence: 55,
+      },
+    ]
+  }
 
   // Render the appropriate chart based on the pattern type and chart type
   const renderChart = (pattern: PatternData) => {
@@ -366,7 +388,7 @@ export default function AIPatternVisualization({ symptoms, medications, symptomT
             <AlertDescription>Log at least 10 symptom entries to generate AI pattern visualizations.</AlertDescription>
           </Alert>
         ) : error ? (
-          <Alert variant="destructive">
+          <Alert variant={error.includes("simplified visualization") ? "default" : "destructive"}>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : isLoading ? (

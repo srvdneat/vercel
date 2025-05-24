@@ -84,25 +84,28 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
       }
 
       try {
-        // Try to parse the response as JSON
+        // Parse the cleaned JSON response
         const parsedResponse = JSON.parse(result.data)
-        const insightList = parsedResponse.map((item: any) => item.insight)
-        const confidenceList = parsedResponse.map((item: any) => item.confidence)
 
-        setInsights(insightList)
-        setConfidenceScores(confidenceList)
-        setLastUpdated(new Date())
+        if (Array.isArray(parsedResponse)) {
+          const insightList = parsedResponse.map((item: any) => item.insight || item.text || String(item))
+          const confidenceList = parsedResponse.map((item: any) => item.confidence || 70)
+
+          setInsights(insightList)
+          setConfidenceScores(confidenceList)
+          setLastUpdated(new Date())
+        } else {
+          throw new Error("Response is not an array")
+        }
       } catch (parseError) {
-        // If JSON parsing fails, fall back to text splitting
-        console.error("Failed to parse AI response as JSON:", parseError)
-        const insightList = result.data
-          .split("\n\n")
-          .filter((insight) => insight.trim().length > 0)
-          .map((insight) => insight.trim())
+        console.error("Failed to parse AI response:", parseError)
 
-        setInsights(insightList)
-        setConfidenceScores(Array(insightList.length).fill(70)) // Default confidence
+        // Create fallback insights based on the data we have
+        const fallbackInsights = generateFallbackInsights(symptomSummary, medicationSummary)
+        setInsights(fallbackInsights.map((i) => i.insight))
+        setConfidenceScores(fallbackInsights.map((i) => i.confidence))
         setLastUpdated(new Date())
+        setError("AI response could not be processed. Showing basic analysis instead.")
       }
     } catch (err) {
       console.error("Error generating insights:", err)
@@ -110,6 +113,64 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Generate fallback insights when AI parsing fails
+  const generateFallbackInsights = (symptoms: any[], medications: any[]) => {
+    const insights = []
+
+    if (symptoms.length > 0) {
+      // Analyze severity trends
+      const avgSeverity = symptoms.reduce((sum, s) => sum + s.severity, 0) / symptoms.length
+      insights.push({
+        insight: `Your average symptom severity over the last ${symptoms.length} entries is ${avgSeverity.toFixed(1)} out of 3. ${avgSeverity > 2 ? "Consider discussing treatment adjustments with your doctor." : "Your symptoms appear to be relatively well-managed."}`,
+        confidence: 80,
+      })
+
+      // Analyze most common symptoms
+      const symptomCounts: Record<string, number> = {}
+      symptoms.forEach((s) => {
+        s.symptoms.forEach((symptom: string) => {
+          symptomCounts[symptom] = (symptomCounts[symptom] || 0) + 1
+        })
+      })
+
+      const mostCommon = Object.entries(symptomCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 2)
+        .map(([name]) => name)
+
+      if (mostCommon.length > 0) {
+        insights.push({
+          insight: `Your most frequently reported symptoms are ${mostCommon.join(" and ")}. Tracking these patterns can help identify triggers and treatment effectiveness.`,
+          confidence: 75,
+        })
+      }
+    }
+
+    if (medications.length > 0) {
+      insights.push({
+        insight: `You're currently tracking ${medications.length} medication${medications.length > 1 ? "s" : ""}. Consistent medication tracking helps ensure optimal treatment outcomes.`,
+        confidence: 70,
+      })
+    }
+
+    // Add weather insight if available
+    const weatherEntries = symptoms.filter((s) => s.weather)
+    if (weatherEntries.length > 5) {
+      insights.push({
+        insight: `You have weather data for ${weatherEntries.length} symptom entries. This data can help identify weather-related triggers for your condition.`,
+        confidence: 65,
+      })
+    }
+
+    // Add general advice
+    insights.push({
+      insight: `Continue logging your symptoms regularly. The more data you collect, the better insights we can provide about your condition patterns.`,
+      confidence: 90,
+    })
+
+    return insights.slice(0, 5) // Return max 5 insights
   }
 
   return (
@@ -139,7 +200,7 @@ export default function AIInsights({ symptoms, medications, symptomTypes }: AIIn
             </AlertDescription>
           </Alert>
         ) : error ? (
-          <Alert>
+          <Alert variant={error.includes("basic analysis") ? "default" : "destructive"}>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : isLoading ? (
