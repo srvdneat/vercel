@@ -1,38 +1,60 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import SymptomTrackerForm from "./symptom-tracker-form"
-import SymptomChart from "./symptom-chart"
-import HealthCalendar from "./health-calendar"
+"use client"
+import { useState } from "react"
+import { BarChart2, Pill, Cloud, Phone, Brain, TrendingUp, Calendar } from "lucide-react"
+import SymptomChart from "@/components/symptom-chart"
+import HealthCalendar from "@/components/health-calendar"
+
+// Navigation items with enhanced styling
+const navItems = [
+  {
+    id: "symptoms",
+    label: "Symptoms",
+    icon: <BarChart2 className="h-4 w-4" />,
+    gradient: "from-purple-500 to-pink-500",
+  },
+  {
+    id: "calendar",
+    label: "Calendar",
+    icon: <Calendar className="h-4 w-4" />,
+    gradient: "from-green-500 to-emerald-500",
+  },
+  {
+    id: "medications",
+    label: "Medications",
+    icon: <Pill className="h-4 w-4" />,
+    gradient: "from-blue-500 to-cyan-500",
+  },
+  { id: "weather", label: "Weather", icon: <Cloud className="h-4 w-4" />, gradient: "from-cyan-500 to-blue-500" },
+  {
+    id: "emergency",
+    label: "Emergency",
+    icon: <Phone className="h-4 w-4" />,
+    gradient: "from-red-500 to-orange-500",
+  },
+  {
+    id: "insights",
+    label: "AI Insights",
+    icon: <Brain className="h-4 w-4" />,
+    gradient: "from-violet-500 to-purple-500",
+  },
+  {
+    id: "patterns",
+    label: "Patterns",
+    icon: <TrendingUp className="h-4 w-4" />,
+    gradient: "from-emerald-500 to-teal-500",
+  },
+]
 
 const SymptomTracker = () => {
+  const [mainView, setMainView] = useState<
+    "symptoms" | "calendar" | "medications" | "weather" | "emergency" | "insights" | "patterns"
+  >("symptoms")
+
   return (
-    <Tabs defaultValue="tracker" className="w-[400px]">
-      <TabsList className="grid w-full grid-cols-6">
-        <TabsTrigger value="tracker">Tracker</TabsTrigger>
-        <TabsTrigger value="chart">Chart</TabsTrigger>
-        <TabsTrigger value="calendar">Calendar</TabsTrigger>
-        <TabsTrigger value="medications">Medications</TabsTrigger>
-        <TabsTrigger value="weather">Weather</TabsTrigger>
-        <TabsTrigger value="emergency">Emergency</TabsTrigger>
-      </TabsList>
-      <TabsContent value="tracker" className="space-y-4">
-        <SymptomTrackerForm />
-      </TabsContent>
-      <TabsContent value="chart" className="space-y-4">
-        <SymptomChart />
-      </TabsContent>
-      <TabsContent value="calendar" className="space-y-4">
-        <HealthCalendar />
-      </TabsContent>
-      <TabsContent value="medications" className="space-y-4">
-        Medications Content
-      </TabsContent>
-      <TabsContent value="weather" className="space-y-4">
-        Weather Content
-      </TabsContent>
-      <TabsContent value="emergency" className="space-y-4">
-        Emergency Content
-      </TabsContent>
-    </Tabs>
+    <div>
+      {mainView === "symptoms" && <SymptomChart className="w-full" />}
+      {mainView === "calendar" && <HealthCalendar className="w-full" />}
+    </div>
   )
 }
 
