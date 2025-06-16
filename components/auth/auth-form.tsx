@@ -20,10 +20,10 @@ export default function AuthForm({ onSuccess }: { onSuccess: () => void }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Initialize Supabase client with explicit URL and key from environment variables
+  // Initialize Supabase client with the correct environment variable names
   const supabase = createClientComponentClient({
-    supabaseUrl: process.env.healthmod_NEXT_PUBLIC_SUPABASE_URL,
-    supabaseKey: process.env.healthmod_NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseUrl: process.env.healthmod_NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseKey: process.env.healthmod_NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   })
 
   const handleAuth = async (e: React.FormEvent) => {

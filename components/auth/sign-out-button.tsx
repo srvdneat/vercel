@@ -1,23 +1,18 @@
 "use client"
 
 import { useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { LogOut, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function SignOutButton() {
   const [isLoading, setIsLoading] = useState(false)
 
-  // Initialize Supabase client with explicit URL and key from environment variables
-  const supabase = createClientComponentClient({
-    supabaseUrl: process.env.healthmod_NEXT_PUBLIC_SUPABASE_URL,
-    supabaseKey: process.env.healthmod_NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  })
-
   const handleSignOut = async () => {
     setIsLoading(true)
     try {
-      await supabase.auth.signOut()
+      localStorage.removeItem("demo_auth_status")
+      // Reload the page to reset the app state
+      window.location.reload()
     } catch (error) {
       console.error("Error signing out:", error)
     } finally {
@@ -31,7 +26,7 @@ export default function SignOutButton() {
       size="sm"
       onClick={handleSignOut}
       disabled={isLoading}
-      className="text-muted-foreground hover:text-foreground"
+      className="text-white/80 hover:text-white"
     >
       {isLoading ? (
         <Loader2 className="h-4 w-4 animate-spin" />
